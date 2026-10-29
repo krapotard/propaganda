@@ -1,0 +1,122 @@
+[
+    {
+        "id": "format-3-2",
+        "creation_date": "2026-10-19T00:00:00",
+        "width": 1300,
+        "height": 867,
+        "resolution": 96,
+        "label": {
+            "fr": "3:2 (1300 x 867)"
+        }
+    },
+    {
+        "id": "format-4-4",
+        "creation_date": "2026-10-19T00:00:01",
+        "width": 1080,
+        "height": 1080,
+        "resolution": 96,
+        "label": {
+            "fr": "4:4 (carré) (1080 x 1080)"
+        }
+    },
+    {
+        "id": "format-16-9",
+        "creation_date": "2026-10-19T00:00:02",
+        "width": 1920,
+        "height": 1080,
+        "resolution": 96,
+        "label": {
+            "fr": "16:9 (1920 x 1080)"
+        }
+    },
+    {
+        "id": "format-16-10",
+        "creation_date": "2026-10-19T00:00:03",
+        "width": 1920,
+        "height": 1200,
+        "resolution": 96,
+        "label": {
+            "fr": "16:10 (1920 x 1200)"
+        }
+    },
+    {
+        "id": "format-a5",
+        "creation_date": "2026-10-19T00:01:00",
+        "width": 559,
+        "height": 794,
+        "resolution": 96,
+        "label": {
+            "fr": "A5 portrait (559 x 794)"
+        }
+    },
+    {
+        "id": "format-a4",
+        "creation_date": "2026-10-19T00:01:01",
+        "width": 794,
+        "height": 1123,
+        "resolution": 96,
+        "label": {
+            "fr": "A4 portrait (794 x 1123)"
+        }
+    },
+    {
+        "id": "format-a3",
+        "creation_date": "2026-10-19T00:01:02",
+        "width": 1123,
+        "height": 1587,
+        "resolution": 96,
+        "label": {
+            "fr": "A3 portrait (1123 x 1587)"
+        }
+    },
+    {
+        "id": "format-reseaux-4-5",
+        "creation_date": "2026-10-20T00:00:00",
+        "width": 1080,
+        "height": 1350,
+        "resolution": 96,
+        "label": {
+            "fr": "Instagram / Facebook 4:5 (1080 x 1350)"
+        }
+    },
+    {
+        "id": "format-story",
+        "creation_date": "2026-10-20T00:00:01",
+        "width": 1080,
+        "height": 1920,
+        "resolution": 96,
+        "label": {
+            "fr": "Story 9:16 (1080 x 1920)"
+        }
+    },
+    {
+        "id": "format-facebook-lien",
+        "creation_date": "2026-10-20T00:00:02",
+        "width": 1200,
+        "height": 630,
+        "resolution": 96,
+        "label": {
+            "fr": "Facebook lien 1,91:1 (1200 x 630)"
+        }
+    },
+    {
+        "id": "format-reseaux-16-9",
+        "creation_date": "2026-10-20T00:00:03",
+        "width": 1200,
+        "height": 675,
+        "resolution": 96,
+        "label": {
+            "fr": "X / Mastodon / Bluesky 16:9 (1200 x 675)"
+        }
+    },
+    {
+        "id": "format-banniere",
+        "creation_date": "2026-10-20T00:00:04",
+        "width": 1500,
+        "height": 500,
+        "resolution": 96,
+        "label": {
+            "fr": "Bannière 3:1 (1500 x 500)"
+        }
+    }
+]

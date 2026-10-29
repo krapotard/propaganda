@@ -1,0 +1,39 @@
+# Aktivisda - routage (mode history), cache et compression
+
+# Les données de l'instance (JSON), fonts.css et index.html sont toujours revalidés :
+# sinon le navigateur garde d'anciennes versions après une mise à jour.
+<IfModule mod_headers.c>
+    <FilesMatch "\.json$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    <FilesMatch "^(index\.html|fonts\.css)$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+    # Fichiers dont le nom contient une empreinte (app.1a2b3c4d.js) : ils ne changent jamais,
+    # le navigateur peut les garder un an (moins de requêtes sur le serveur).
+    <FilesMatch "\.[0-9a-f]{8}\.(js|css|woff2?|ttf|eot|wasm)$">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </FilesMatch>
+</IfModule>
+
+# Compression des fichiers texte (le JavaScript passe de 2 Mo à 750 Ko environ)
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/css application/javascript text/javascript application/json image/svg+xml application/wasm
+</IfModule>
+
+# Accès protégé : tout passe par la connexion (dossier acces/), sauf le strict nécessaire à son affichage
+# et le code de l'application (js, css) et les polices, qui ne contiennent aucun logo ni donnée.
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+# publics : connexion, code de l'application, polices
+RewriteRule ^acces/ - [L]
+RewriteRule ^(js|css|fonts)/ - [L]
+RewriteRule ^static/fonts/ - [L]
+RewriteRule ^(favicon\.ico|apple-touch-icon\.png|robots\.txt)$ - [L]
+# les relais PHP (Vecteezy, administration) vérifient eux-mêmes la connexion
+RewriteRule ^(vecteezy|admin)/[A-Za-z0-9_-]+\.php$ - [L]
+# tout le reste (éditeur, logos, images, données, pages d'administration) passe par la passerelle
+RewriteRule ^ acces/gate.php [L]
+</IfModule>

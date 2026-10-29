@@ -1,0 +1,1165 @@
+{
+    "version": "1.0.11",
+    "fonts": [
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Atkinson Hyperlegible",
+            "directory": "Atkinson-Hyperlegible",
+            "formats": {
+                "ttf": "Atkinson-Hyperlegible.ttf",
+                "woff2": "Atkinson-Hyperlegible.woff2"
+            },
+            "name": "Atkinson Hyperlegible",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Atkinson Hyperlegible Gras",
+            "directory": "Atkinson-Hyperlegible",
+            "formats": {
+                "ttf": "Atkinson-Hyperlegible-Gras.ttf",
+                "woff2": "Atkinson-Hyperlegible-Gras.woff2"
+            },
+            "name": "Atkinson Hyperlegible Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Atkinson Hyperlegible Gras Italique",
+            "directory": "Atkinson-Hyperlegible",
+            "formats": {
+                "ttf": "Atkinson-Hyperlegible-Gras-Italique.ttf",
+                "woff2": "Atkinson-Hyperlegible-Gras-Italique.woff2"
+            },
+            "name": "Atkinson Hyperlegible Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Atkinson Hyperlegible Italique",
+            "directory": "Atkinson-Hyperlegible",
+            "formats": {
+                "ttf": "Atkinson-Hyperlegible-Italique.ttf",
+                "woff2": "Atkinson-Hyperlegible-Italique.woff2"
+            },
+            "name": "Atkinson Hyperlegible Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow",
+            "directory": "Barlow",
+            "formats": {
+                "ttf": "Barlow.ttf",
+                "woff2": "Barlow.woff2"
+            },
+            "name": "Barlow",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Condensed",
+            "directory": "Barlow-Condensed",
+            "formats": {
+                "ttf": "Barlow-Condensed.ttf",
+                "woff2": "Barlow-Condensed.woff2"
+            },
+            "name": "Barlow Condensed",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Condensed Gras",
+            "directory": "Barlow-Condensed",
+            "formats": {
+                "ttf": "Barlow-Condensed-Gras.ttf",
+                "woff2": "Barlow-Condensed-Gras.woff2"
+            },
+            "name": "Barlow Condensed Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Condensed Gras Italique",
+            "directory": "Barlow-Condensed",
+            "formats": {
+                "ttf": "Barlow-Condensed-Gras-Italique.ttf",
+                "woff2": "Barlow-Condensed-Gras-Italique.woff2"
+            },
+            "name": "Barlow Condensed Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Condensed Italique",
+            "directory": "Barlow-Condensed",
+            "formats": {
+                "ttf": "Barlow-Condensed-Italique.ttf",
+                "woff2": "Barlow-Condensed-Italique.woff2"
+            },
+            "name": "Barlow Condensed Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Gras",
+            "directory": "Barlow",
+            "formats": {
+                "ttf": "Barlow-Gras.ttf",
+                "woff2": "Barlow-Gras.woff2"
+            },
+            "name": "Barlow Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Gras Italique",
+            "directory": "Barlow",
+            "formats": {
+                "ttf": "Barlow-Gras-Italique.ttf",
+                "woff2": "Barlow-Gras-Italique.woff2"
+            },
+            "name": "Barlow Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Italique",
+            "directory": "Barlow",
+            "formats": {
+                "ttf": "Barlow-Italique.ttf",
+                "woff2": "Barlow-Italique.woff2"
+            },
+            "name": "Barlow Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Semi Condensed",
+            "directory": "Barlow-Semi-Condensed",
+            "formats": {
+                "ttf": "Barlow-Semi-Condensed.ttf",
+                "woff2": "Barlow-Semi-Condensed.woff2"
+            },
+            "name": "Barlow Semi Condensed",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Semi Condensed Gras",
+            "directory": "Barlow-Semi-Condensed",
+            "formats": {
+                "ttf": "Barlow-Semi-Condensed-Gras.ttf",
+                "woff2": "Barlow-Semi-Condensed-Gras.woff2"
+            },
+            "name": "Barlow Semi Condensed Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Barlow Semi Condensed Medium",
+            "directory": "Barlow-Semi-Condensed",
+            "formats": {
+                "ttf": "Barlow-Semi-Condensed-Medium.ttf",
+                "woff2": "Barlow-Semi-Condensed-Medium.woff2"
+            },
+            "name": "Barlow Semi Condensed Medium",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Bebas Neue",
+            "directory": "Bebas-Neue",
+            "formats": {
+                "ttf": "Bebas-Neue.ttf",
+                "woff2": "Bebas-Neue.woff2"
+            },
+            "name": "Bebas Neue",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "BlackBoard",
+            "directory": "BlackBoard",
+            "formats": {
+                "ttf": "BlackBoard.ttf",
+                "woff2": "BlackBoard.woff2"
+            },
+            "name": "BlackBoard",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Caveat Brush",
+            "directory": "Caveat-Brush",
+            "formats": {
+                "ttf": "Caveat-Brush.ttf",
+                "woff2": "Caveat-Brush.woff2"
+            },
+            "name": "Caveat Brush",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Chernobyl",
+            "directory": "Chernobyl",
+            "formats": {
+                "opentype": "Chernobyl.otf",
+                "woff2": "Chernobyl.woff2"
+            },
+            "name": "Chernobyl",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Concert One",
+            "directory": "Concert-One",
+            "formats": {
+                "ttf": "Concert-One.ttf",
+                "woff2": "Concert-One.woff2"
+            },
+            "name": "Concert One",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Drybrush",
+            "directory": "Drybrush",
+            "formats": {
+                "ttf": "Drybrush.ttf",
+                "woff2": "Drybrush.woff2"
+            },
+            "name": "Drybrush",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Edo SZ",
+            "directory": "Edo-SZ",
+            "formats": {
+                "ttf": "Edo-SZ.ttf",
+                "woff2": "Edo-SZ.woff2"
+            },
+            "name": "Edo SZ",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Federo",
+            "directory": "Federo",
+            "formats": {
+                "ttf": "Federo.ttf",
+                "woff2": "Federo.woff2"
+            },
+            "name": "Federo",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Fira Sans",
+            "directory": "Fira-Sans",
+            "formats": {
+                "ttf": "Fira-Sans.ttf",
+                "woff2": "Fira-Sans.woff2"
+            },
+            "name": "Fira Sans",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Fira Sans Gras",
+            "directory": "Fira-Sans",
+            "formats": {
+                "ttf": "Fira-Sans-Gras.ttf",
+                "woff2": "Fira-Sans-Gras.woff2"
+            },
+            "name": "Fira Sans Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Fira Sans Gras Italique",
+            "directory": "Fira-Sans",
+            "formats": {
+                "ttf": "Fira-Sans-Gras-Italique.ttf",
+                "woff2": "Fira-Sans-Gras-Italique.woff2"
+            },
+            "name": "Fira Sans Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Fira Sans Italique",
+            "directory": "Fira-Sans",
+            "formats": {
+                "ttf": "Fira-Sans-Italique.ttf",
+                "woff2": "Fira-Sans-Italique.woff2"
+            },
+            "name": "Fira Sans Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Fredericka the Great",
+            "directory": "Fredericka-the-Great",
+            "formats": {
+                "ttf": "Fredericka-the-Great.ttf",
+                "woff2": "Fredericka-the-Great.woff2"
+            },
+            "name": "Fredericka the Great",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "La Machine Company",
+            "directory": "La-Machine-Company",
+            "formats": {
+                "ttf": "La-Machine-Company.ttf",
+                "woff2": "La-Machine-Company.woff2"
+            },
+            "name": "La Machine Company",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lexend",
+            "directory": "Lexend",
+            "formats": {
+                "ttf": "Lexend.ttf",
+                "woff2": "Lexend.woff2"
+            },
+            "name": "Lexend",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lexend Gras",
+            "directory": "Lexend",
+            "formats": {
+                "ttf": "Lexend-Gras.ttf",
+                "woff2": "Lexend-Gras.woff2"
+            },
+            "name": "Lexend Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lobster Two",
+            "directory": "Lobster-Two",
+            "formats": {
+                "ttf": "Lobster-Two.ttf",
+                "woff2": "Lobster-Two.woff2"
+            },
+            "name": "Lobster Two",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lobster Two Gras",
+            "directory": "Lobster-Two",
+            "formats": {
+                "ttf": "Lobster-Two-Gras.ttf",
+                "woff2": "Lobster-Two-Gras.woff2"
+            },
+            "name": "Lobster Two Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lobster Two Gras Italique",
+            "directory": "Lobster-Two",
+            "formats": {
+                "ttf": "Lobster-Two-Gras-Italique.ttf",
+                "woff2": "Lobster-Two-Gras-Italique.woff2"
+            },
+            "name": "Lobster Two Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lobster Two Italique",
+            "directory": "Lobster-Two",
+            "formats": {
+                "ttf": "Lobster-Two-Italique.ttf",
+                "woff2": "Lobster-Two-Italique.woff2"
+            },
+            "name": "Lobster Two Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lora",
+            "directory": "Lora",
+            "formats": {
+                "ttf": "Lora.ttf",
+                "woff2": "Lora.woff2"
+            },
+            "name": "Lora",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lora Gras",
+            "directory": "Lora",
+            "formats": {
+                "ttf": "Lora-Gras.ttf",
+                "woff2": "Lora-Gras.woff2"
+            },
+            "name": "Lora Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lora Gras Italique",
+            "directory": "Lora",
+            "formats": {
+                "ttf": "Lora-Gras-Italique.ttf",
+                "woff2": "Lora-Gras-Italique.woff2"
+            },
+            "name": "Lora Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Lora Italique",
+            "directory": "Lora",
+            "formats": {
+                "ttf": "Lora-Italique.ttf",
+                "woff2": "Lora-Italique.woff2"
+            },
+            "name": "Lora Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Matcha World",
+            "directory": "Matcha-World",
+            "formats": {
+                "ttf": "Matcha-World.ttf",
+                "woff2": "Matcha-World.woff2"
+            },
+            "name": "Matcha World",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Montserrat",
+            "directory": "Montserrat",
+            "formats": {
+                "ttf": "Montserrat.ttf",
+                "woff2": "Montserrat.woff2"
+            },
+            "name": "Montserrat",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Montserrat Gras",
+            "directory": "Montserrat",
+            "formats": {
+                "ttf": "Montserrat-Gras.ttf",
+                "woff2": "Montserrat-Gras.woff2"
+            },
+            "name": "Montserrat Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Montserrat Gras Italique",
+            "directory": "Montserrat",
+            "formats": {
+                "ttf": "Montserrat-Gras-Italique.ttf",
+                "woff2": "Montserrat-Gras-Italique.woff2"
+            },
+            "name": "Montserrat Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Montserrat Italique",
+            "directory": "Montserrat",
+            "formats": {
+                "ttf": "Montserrat-Italique.ttf",
+                "woff2": "Montserrat-Italique.woff2"
+            },
+            "name": "Montserrat Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Old Typewriter",
+            "directory": "Old-Typewriter",
+            "formats": {
+                "ttf": "Old-Typewriter.ttf",
+                "woff2": "Old-Typewriter.woff2"
+            },
+            "name": "Old Typewriter",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Open Sans",
+            "directory": "Open-Sans",
+            "formats": {
+                "ttf": "Open-Sans.ttf",
+                "woff2": "Open-Sans.woff2"
+            },
+            "name": "Open Sans",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Open Sans Gras",
+            "directory": "Open-Sans",
+            "formats": {
+                "ttf": "Open-Sans-Gras.ttf",
+                "woff2": "Open-Sans-Gras.woff2"
+            },
+            "name": "Open Sans Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Open Sans Gras Italique",
+            "directory": "Open-Sans",
+            "formats": {
+                "ttf": "Open-Sans-Gras-Italique.ttf",
+                "woff2": "Open-Sans-Gras-Italique.woff2"
+            },
+            "name": "Open Sans Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Open Sans Italique",
+            "directory": "Open-Sans",
+            "formats": {
+                "ttf": "Open-Sans-Italique.ttf",
+                "woff2": "Open-Sans-Italique.woff2"
+            },
+            "name": "Open Sans Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Oswald",
+            "directory": "Oswald",
+            "formats": {
+                "ttf": "Oswald.ttf",
+                "woff2": "Oswald.woff2"
+            },
+            "name": "Oswald",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Oswald Gras",
+            "directory": "Oswald",
+            "formats": {
+                "ttf": "Oswald-Gras.ttf",
+                "woff2": "Oswald-Gras.woff2"
+            },
+            "name": "Oswald Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Permanent Marker",
+            "directory": "Permanent-Marker",
+            "formats": {
+                "ttf": "Permanent-Marker.ttf",
+                "woff2": "Permanent-Marker.woff2"
+            },
+            "name": "Permanent Marker",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Punk Typewriter",
+            "directory": "Punk-Typewriter",
+            "formats": {
+                "opentype": "Punk-Typewriter.otf",
+                "woff2": "Punk-Typewriter.woff2"
+            },
+            "name": "Punk Typewriter",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Roboto",
+            "directory": "Roboto",
+            "formats": {
+                "ttf": "Roboto.ttf",
+                "woff2": "Roboto.woff2"
+            },
+            "name": "Roboto",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Roboto Gras",
+            "directory": "Roboto",
+            "formats": {
+                "ttf": "Roboto-Gras.ttf",
+                "woff2": "Roboto-Gras.woff2"
+            },
+            "name": "Roboto Gras",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Roboto Gras Italique",
+            "directory": "Roboto",
+            "formats": {
+                "ttf": "Roboto-Gras-Italique.ttf",
+                "woff2": "Roboto-Gras-Italique.woff2"
+            },
+            "name": "Roboto Gras Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Roboto Italique",
+            "directory": "Roboto",
+            "formats": {
+                "ttf": "Roboto-Italique.ttf",
+                "woff2": "Roboto-Italique.woff2"
+            },
+            "name": "Roboto Italique",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        },
+        {
+            "css": {
+                "font-style": "normal",
+                "font-weight": "normal",
+                "font-display": null,
+                "unicode-range": null
+            },
+            "fontName": "Troika",
+            "directory": "Troika",
+            "formats": {
+                "opentype": "Troika.otf",
+                "woff2": "Troika.woff2"
+            },
+            "name": "Troika",
+            "loaded": false,
+            "italic": false,
+            "bold": false,
+            "alwaysLoaded": true,
+            "default": false
+        }
+    ]
+}

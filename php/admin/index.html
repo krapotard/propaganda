@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Administration de la bibliothèque</title>
+    <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+    <header class="top">
+        <h1>Bibliothèque d'images</h1>
+        <nav>
+            <a href="../">← Retour à Aktivisda</a>
+            <span id="who" class="who"></span>
+        </nav>
+    </header>
+
+    <main>
+        <div class="tabs" role="tablist">
+            <button role="tab" data-category="symbols" class="active">Symboles</button>
+            <button role="tab" data-category="backgrounds">Images de fond</button>
+            <button role="tab" data-category="templates">Modèles</button>
+        </div>
+
+        <section class="panel">
+            <h2 id="addTitle">Ajouter des SVG</h2>
+            <div id="drop" class="drop" tabindex="0">
+                <p id="dropMain"><strong>Glisse tes fichiers .svg ici</strong> ou <label class="link" for="file">choisis-les</label>.</p>
+                <p class="hint" id="dropHint">Un nom, des couleurs modifiables et les miniatures sont préparés automatiquement. Prévois des couleurs au format <code>#rrggbb</code> pour pouvoir les changer dans l'éditeur.</p>
+                <input id="file" type="file" accept=".svg,image/svg+xml" multiple hidden />
+            </div>
+
+            <div id="staged" class="staged" hidden>
+                <h3>Prêts à envoyer</h3>
+                <ul id="stagedList"></ul>
+                <div class="actions">
+                    <button id="send" class="primary">Ajouter à la bibliothèque</button>
+                    <button id="clear" class="ghost">Vider la liste</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Dans la bibliothèque <span id="count" class="count"></span></h2>
+            <p class="hint">Clique sur un nom pour le modifier. Supprimer un élément le retire aussi des modèles qui l'utilisent.</p>
+            <ul id="grid" class="grid"></ul>
+            <p id="empty" class="hint" hidden>Rien ici pour l'instant.</p>
+        </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+    <script src="admin.js"></script>
+</body>
+</html>

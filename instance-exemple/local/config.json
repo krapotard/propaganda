@@ -1,0 +1,38 @@
+{
+    "version": "1.7.0",
+    "config": {
+        "name": {
+            "fr": "CGT FT Occitanie - Visuels"
+        },
+        "id": "cgtftocc",
+        "description": {
+            "fr": "Créez vos affiches, visuels et QR codes aux couleurs de la CGT FT Occitanie."
+        },
+        "availableLangs": [
+            "fr",
+            "en"
+        ],
+        "matomo": {
+            "enabled": false,
+            "host": "https://stats.aktivisda.earth/matomo",
+            "siteId": 11
+        },
+        "aktivisda": {
+            "ref": "main"
+        },
+        "gitlab": {
+            "projectId": "78511",
+            "url": "https://framagit.org",
+            "repo": "/aktivisda/fresque-du-climat/",
+            "branch": "main"
+        },
+        "backtivisda": {
+            "server": "https://server.aktivisda.earth"
+        },
+        "email": "contact@cgtftocc.org",
+        "url": "https://propagande.cgtftocc.org/",
+        "about": {
+            "fr": "Outil de création de visuels de la <b>CGT France Travail Occitanie</b>. Tout se passe dans votre navigateur : aucune image n'est envoyée sur un serveur."
+        }
+    }
+}
