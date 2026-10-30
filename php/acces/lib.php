@@ -170,7 +170,7 @@ function acces_page(string $titre, callable $corps, ?array $u = null, string $la
     header('Cache-Control: no-store');
     header('X-Frame-Options: DENY');
     echo '<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">';
-    echo '<title>' . acces_h($titre) . ' – Aktivisda</title><link rel="icon" href="/acces/logo.svg" type="image/svg+xml"><meta name="theme-color" content="#c30c07"><style>';
+    echo '<title>' . acces_h($titre) . ' – Propaganda</title><link rel="icon" href="/acces/logo.svg" type="image/svg+xml"><meta name="theme-color" content="#c30c07"><style>';
     echo ':root{--texte:#1a1a1a;--fond:#f3f3f3;--rouge:#c30c07;--bord:#767676}*{box-sizing:border-box}';
     echo 'body{margin:0;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.5;color:var(--texte);background:var(--fond);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}';
     echo 'main{background:#fff;border:1px solid #c9c9c9;border-radius:6px;padding:28px;width:100%;max-width:' . $largeur . '}';
@@ -183,7 +183,7 @@ function acces_page(string $titre, callable $corps, ?array $u = null, string $la
     echo '.err{background:#fde8e8;border:2px solid var(--rouge);border-radius:4px;padding:10px 12px;margin:0 0 8px}.ok{background:#e6f4ea;border:2px solid #0b6b2b;border-radius:4px;padding:10px 12px;margin:0 0 8px}';
     echo '.aide{font-size:14px;color:#444;margin:4px 0 0}table{width:100%;border-collapse:collapse;font-size:15px}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid #ddd;vertical-align:middle}';
     echo '.barre{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 14px;font-size:15px}.barre a{color:var(--rouge)}code{background:#f3f3f3;padding:1px 5px;border-radius:3px;font-size:17px}';
-    echo '</style></head><body><main><div class="marque"><img src="/acces/logo.svg" alt="" width="64" height="64"><h1><span class="nom">Aktivisda</span> visuels et QR codes de la CGT FT Occitanie</h1></div>';
+    echo '</style></head><body><main><div class="marque"><img src="/acces/logo.svg" alt="" width="64" height="64"><h1><span class="nom">Propaganda</span> visuels et QR codes de la CGT FT Occitanie</h1></div>';
     if ($u) {
         echo '<div class="barre"><span>Connecté : <strong>' . acces_h($u['nom'] ?: $u['identifiant']) . '</strong></span><span>';
         echo '<a href="/">Éditeur</a>';

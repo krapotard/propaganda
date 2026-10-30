@@ -94,6 +94,8 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
             angle: this.options.angle!,
             skewX: this.options.skewX || 0,
             skewY: this.options.skewY || 0,
+            flipX: !!this.options.flipX,
+            flipY: !!this.options.flipY,
             zIndex: this.zIndex(),
             i18n: this.options.i18n,
             rules: this.options.rules !== undefined ? this.options.rules : {},
@@ -124,6 +126,18 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
         }
 
         r.svg = await this.image!.imageToSvg();
+        if (this.options.flipX || this.options.flipY) {
+            // Miroir : appliqué au contenu avant l'inclinaison et la rotation, comme dans Konva.
+            const svgDom = svgToDom(r.svg);
+            const svgRoot = <SVGSVGElement><any>svgDom.documentElement;
+            const vb = svgRoot.getAttribute('viewBox')!.split(' ').map((v) => parseFloat(v));
+            const fx = this.options.flipX ? -1 : 1;
+            const fy = this.options.flipY ? -1 : 1;
+            const tx = this.options.flipX ? 2 * vb[0] + vb[2] : 0;
+            const ty = this.options.flipY ? 2 * vb[1] + vb[3] : 0;
+            svgRoot.innerHTML = `<g transform="matrix(${fx} 0 0 ${fy} ${tx} ${ty})">${svgRoot.innerHTML}</g>`;
+            r.svg = new XMLSerializer().serializeToString(svgRoot);
+        }
         const skewX = this.options.skewX || 0;
         const skewY = this.options.skewY || 0;
         if (skewX !== 0 || skewY !== 0) {
@@ -224,6 +238,13 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
 
     destroy() {
         if (this.konvaElement) this.konvaElement.destroy();
+    }
+
+    update(options: ComponentOptions, document: Partial<DocumentParams>): Promise<boolean | void> {
+        // Valeurs par défaut explicites : sans elles, « annuler » ne saurait pas revenir à l'état sans miroir.
+        if (this.options.flipX === undefined) this.options.flipX = false;
+        if (this.options.flipY === undefined) this.options.flipY = false;
+        return super.update(options, document);
     }
 
     internalUpdate(options: ComponentOptions, document: Partial<DocumentParams>)
@@ -336,8 +357,8 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
                             this.konvaElement.setAttrs({
                                 width: imageWidth,
                                 height: imageHeight,
-                                scaleX: 1,
-                                scaleY: 1,
+                                scaleX: this.options.flipX ? -1 : 1,
+                                scaleY: this.options.flipY ? -1 : 1,
                                 zIndex: this.zIndex(),
                                 hitFunc: this.image!.makeHitformFunction(ratio),
                                 rotation: options.angle !== undefined ? options.angle : previousAngle,
@@ -368,6 +389,14 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
 
                     if (options.angle !== undefined && options.angle !== this.currentAngle()) {
                         this.konvaElement!.rotation(options.angle!);
+                    }
+
+                    if (options.flipX !== undefined || options.flipY !== undefined) {
+                        this.konvaElement!.setAttrs({
+                            scaleX: (this.options.flipX ? -1 : 1) * Math.abs(this.konvaElement!.scaleX()),
+                            scaleY: (this.options.flipY ? -1 : 1) * Math.abs(this.konvaElement!.scaleY()),
+                        });
+                        this.vida.draw();
                     }
 
                     if (options.skewX !== undefined || options.skewY !== undefined) {
@@ -510,7 +539,7 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
 
     currentScale() {
         if (!this.konvaElement) return 0;
-        const imageWidth = this.konvaElement.getWidth()*this.konvaElement.scaleX();
+        const imageWidth = this.konvaElement.getWidth()*Math.abs(this.konvaElement.scaleX());
         const ratio = imageWidth / this.image!.originalSize.width;
 
         const ratioWidth = this.documentSize!.width / this.image!.originalSize.width;

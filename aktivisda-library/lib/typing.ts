@@ -100,6 +100,8 @@ export interface ComponentParams {
     justification: string;
     angle: number;
     // Inclinaison (en degrés), uniquement pour les photos
+    flipX: boolean;
+    flipY: boolean;
     skewX: number;
     skewY: number;
     // WARNING

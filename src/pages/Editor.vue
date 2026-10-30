@@ -543,6 +543,7 @@ export default {
         updateComponent(id, options) {
             this.hasChanged = true;
             const rerender = options.zIndex !== undefined
+                || options.flipX !== undefined || options.flipY !== undefined
                 || (options.image !== undefined && options.image.crop !== undefined)
                 || (options.rules !== undefined && options.rules[Object.keys(options.rules)[0]].fixed !== undefined)
                 || (this.editingLang !== undefined && _get(options.i18n[this.editingLang.code], 'text') === null)

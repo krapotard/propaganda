@@ -52,8 +52,7 @@ const router = new Router({
                 {
                     path: '/',
                     name: 'welcome',
-                    // Pas de page d'accueil : on arrive directement dans l'éditeur.
-                    redirect: (to) => ({ name: 'editorNew', params: { lang: to.params.lang } }),
+                    component: RouterView, // jamais affichée : voir router.beforeEach plus bas
                 },
                 {
                     path: 'symbols',
@@ -122,6 +121,18 @@ const router = new Router({
             ],
         },
     ],
+});
+
+// Pas de page d'accueil : on arrive directement dans l'éditeur. Un « /edit » sans langue est aussi reconnu comme
+// « accueil » avec lang = "edit" : on ne redirige que si la langue est absente ou de 2 lettres (sinon le garde de la
+// route parente rétablit d'abord la langue).
+router.beforeEach((to, from, next) => {
+    const accueil = to.path.match(/^\/([a-z]{2})?\/?$/); // « / », « /fr » ou « /fr/ »
+    if (accueil) {
+        next({ name: 'editorNew', params: { lang: accueil[1] }, query: to.query, replace: true });
+        return;
+    }
+    next();
 });
 
 // router.beforeEach((to, from, next) => {

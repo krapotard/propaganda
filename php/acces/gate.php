@@ -20,7 +20,11 @@ if (strpos($chemin, "\0") !== false || strpos($chemin, '..') !== false
 $u = acces_utilisateur();
 $html = strpos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'text/html') !== false;
 if (!$u) {
-    if ($html) { header('Cache-Control: no-store'); header('Location: /acces/login.php?retour=' . rawurlencode($uri)); exit; }
+    if ($html) {
+        // On garde la partie après « ? » : un lien de partage (/edit?b64Template=...) doit survivre à la connexion.
+        $requete = (string)parse_url((string)($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_QUERY);
+        header('Cache-Control: no-store'); header('Location: /acces/login.php?retour=' . rawurlencode($requete !== '' ? $uri . '?' . $requete : $uri)); exit;
+    }
     acces_refuser(401, 'Connexion requise.');
 }
 if (!empty($u['a_changer'])) {
@@ -35,13 +39,14 @@ $types = ['html' => 'text/html; charset=utf-8', 'json' => 'application/json; cha
     'js' => 'application/javascript; charset=utf-8', 'woff2' => 'font/woff2', 'woff' => 'font/woff', 'ttf' => 'font/ttf', 'txt' => 'text/plain; charset=utf-8',
     'xml' => 'application/xml', 'wasm' => 'application/wasm', 'gz' => 'application/gzip', 'webmanifest' => 'application/manifest+json'];
 
-if (substr($chemin, -1) === '/') $chemin .= 'index.html'; // dossier : sa page d'accueil (éditeur ou administration)
+$dossier = substr($chemin, -1) === '/';
+if ($dossier) $chemin .= 'index.html'; // dossier : sa page d'accueil (éditeur ou administration)
 $fichier = $racine . $chemin;
 $reel = is_file($fichier) ? realpath($fichier) : false;
 $base = realpath($racine);
 if ($reel === false || strpos($reel, $base . DIRECTORY_SEPARATOR) !== 0) {
     // adresse de l'application (mode « history ») : on sert l'éditeur
-    if (preg_match('#\.[a-z0-9]{2,5}$#i', $chemin)) { http_response_code(404); exit; }
+    if (!$dossier && preg_match('#\.[a-z0-9]{2,5}$#i', $chemin)) { http_response_code(404); exit; }
     $reel = $base . '/index.html';
 }
 $ext = strtolower(pathinfo($reel, PATHINFO_EXTENSION));

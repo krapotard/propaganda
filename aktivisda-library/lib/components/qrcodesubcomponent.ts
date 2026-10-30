@@ -40,7 +40,7 @@ export default class QrcodeVidaSubComponent extends ImageVidaSubComponent {
         }
         const randomOptions: Partial<ImageOptions> = {
             type: this.type,
-            url: 'https://aktivisda.earth',
+            url: 'https://cgtftocc.org',
             color: '#000000',
             backgroundColor: '#ffffff',
             bodyShape: 'square',

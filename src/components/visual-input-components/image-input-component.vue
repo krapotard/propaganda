@@ -51,6 +51,17 @@ const vStore = useVidaStore();
                     </template>
                 </picker-container>
 
+                <picker-container v-if="canMirror" label="Miroir">
+                    <template v-slot:pickers>
+                        <div class="photo-tools mirror-tools">
+                            <b-button icon-left="flip-horizontal" :type="options.flipX ? 'is-primary' : ''"
+                                @click="$emit('update', { flipX: !options.flipX })">Horizontal</b-button>
+                            <b-button icon-left="flip-vertical" :type="options.flipY ? 'is-primary' : ''"
+                                @click="$emit('update', { flipY: !options.flipY })">Vertical</b-button>
+                        </div>
+                    </template>
+                </picker-container>
+
                 <picker-container :label="$t('COMMON.SIZE')" :rule="rule('size')">
                     <template v-slot:enabled-switch>
                         <rule-picker v-if="!inTranslationMode" tipPosition="is-left" :value="rule('size')"
@@ -124,6 +135,9 @@ export default {
         isPhoto() {
             const type = _get(this.options, 'image.type');
             return type === 'urlphoto' || type === 'internalphoto';
+        },
+        canMirror() {
+            return _get(this.options, 'image.type') !== 'qrcode';
         },
         canCrop() {
             return _get(this.options, 'image.type') === 'urlphoto' && !!_get(this.options, 'image.url');
@@ -232,6 +246,7 @@ export default {
 .photo-tools {
     text-align: left;
 }
+.mirror-tools .button { margin-right: 6px; }
 .photo-tool-label {
     margin: 12px 0 4px;
     font-size: 0.9em;
