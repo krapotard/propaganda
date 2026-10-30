@@ -299,6 +299,13 @@
             "HELP_CTA": "Aider à la traduction",
             "HELP_MODAL": "Ce modèle est prêt à être traduit dans d'autres langues. Tu peux contribuer à sa traduction en <a href='mailto:{email}'>contactant les administrateur·ices</a>."
         },
+        "DRAFT": {
+            "FAILED": "La sauvegarde automatique dans ce navigateur est impossible (espace insuffisant ou navigation privée). Pensez à « Sauvegarder ».",
+            "MESSAGE": "Un travail en cours a été retrouvé, enregistré dans ce navigateur le {date} {resume}. Voulez-vous le reprendre ?",
+            "NEW": "Nouveau visuel",
+            "RESUME": "Reprendre",
+            "TITLE": "Travail en cours retrouvé"
+        },
         "UNSAVED_WORK": {
             "MESSAGE": "Attention, en quittant cette page vous perdrez vos modifications en cours.",
             "QUIT_BUTTON": "Partir",
@@ -393,6 +400,7 @@
         "DEFAULT_TEXT": "En savoir plus sur aktivisda.earth",
         "LABEL": "Texte | Textes",
         "PLACEHOLDER": "Votre texte ici",
+        "BOX": "Zone de texte à largeur fixe",
         "SHADOW": "Ombre"
     },
     "WELCOME": {
