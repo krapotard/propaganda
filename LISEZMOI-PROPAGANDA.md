@@ -8,6 +8,7 @@ voir `LICENSE`). Ce dépôt contient le code de notre version adaptée, publié 
 - Interface « Canva » : barre d'icônes à gauche et tiroirs (modèles, fonds, éléments, import, dessin, formes, texte, QR, taille).
 - QR codes stylés (formes de points, cadres, centres, couleurs, dégradé, logo central).
 - Recadrage et inclinaison des images, outils de dessin, formes avec opacité, roue chromatique.
+- Sauvegarde automatique du travail en cours dans le navigateur (IndexedDB), texte justifié et zones de texte à largeur fixe.
 - Recherche d'images Vecteezy via un petit relais PHP (`php/vecteezy/`, clé API à fournir).
 - Connexion obligatoire avec deux rôles (utilisateur, administrateur) : `php/acces/`.
 - Gestionnaire de bibliothèque (symboles, fonds, modèles, étiquettes) : `php/admin/`.

@@ -65,7 +65,17 @@
                             <b-radio-button v-model="justificationIndex" :native-value="2" type="is-outlined is-primary">
                                 <b-icon icon="format-align-right"></b-icon>
                             </b-radio-button>
+                            <b-radio-button v-model="justificationIndex" :native-value="3" type="is-outlined is-primary">
+                                <b-icon icon="format-align-justify"></b-icon>
+                            </b-radio-button>
                         </b-field>
+                    </div>
+
+                    <div v-if="!inTranslationMode" class="mt-2">
+                        <b-switch v-model="boxEnabled">{{ $t('TEXTS.BOX') }}</b-switch>
+                        <number-picker v-if="boxEnabled" :min="20" :max="Math.max(width || 0, optionValue('boxWidth') || 0, 200)"
+                            :value="optionValue('boxWidth')" @input="(e) => emitValue('boxWidth')(e)" unit="px"
+                            :prepend="$t('COMMON.SMALL')" :append="$t('COMMON.BIG')" />
                     </div>
                 </template>
             </picker-container>
@@ -325,17 +335,27 @@ export default {
         rule: function() {
             return (key) => { let r = _get(this.options.rules, key); return r === undefined ? {} : r };
         },
+        // Zone de texte de largeur fixe (retour à la ligne automatique)
+        boxEnabled: {
+            get: function () {
+                return (this.options.boxWidth || 0) > 0;
+            },
+            set: function (value) {
+                if (value === this.boxEnabled) return;
+                this.$emit('update', { boxWidth: value ? Math.round((this.width || 1000) * 0.6) : 0 });
+            },
+        },
         // TODO: cannot work in translation mode, maybe useless?
         justificationIndex: {
             set: function (value) {
                 if (this.inTranslationMode) return;
-                if (value === ['left', 'center', 'right'].indexOf(this.textJustification)) return;
-                const newJustification = ['left', 'center', 'right'][value];
+                if (value === ['left', 'center', 'right', 'justify'].indexOf(this.textJustification)) return;
+                const newJustification = ['left', 'center', 'right', 'justify'][value];
                 this.textJustification = newJustification;
                 this.$emit('update', { justification: newJustification });
             },
             get: function () {
-                return ['left', 'center', 'right'].indexOf(this.textJustification);
+                return ['left', 'center', 'right', 'justify'].indexOf(this.textJustification);
             },
         },
         // TODO: use optionValue

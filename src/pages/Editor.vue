@@ -129,6 +129,7 @@ import VidaEditorLibrary from '@/components/editor-library.vue';
 import DrawingOverlay from '@/components/drawing-overlay.vue';
 
 import { uriToJSON, showSnackbarOnRedirection } from '@/plugins/utils.js';
+import { dernierTravail, enregistrerTravail } from '@/plugins/brouillon.js';
 
 import { pdfMakeFonts, fontsLoaded } from '@/plugins/font-loader.js';
 
@@ -265,6 +266,47 @@ export default {
         },
     },
     methods: {
+        // Sauvegarde automatique dans le navigateur (voir plugins/brouillon.js)
+        marquerModifie() {
+            this.hasChanged = true;
+            // pas de sauvegarde avant la fin du chargement (sinon un visuel vierge masquerait le vrai travail)
+            if (!this.brouillonPret) return;
+            clearTimeout(this.minuterieBrouillon);
+            this.minuterieBrouillon = setTimeout(() => this.sauverBrouillon(), 1500);
+        },
+        sauverBrouillon() {
+            clearTimeout(this.minuterieBrouillon);
+            if (!this.hasChanged || !this.vida || this.isLoading || this.isExporting) return;
+            try {
+                const json = this.vida.toJson();
+                const texte = Object.values(this.cacheTexts || {}).filter((t) => t && t !== '...').slice(0, 2).join(' / ');
+                enregistrerTravail(this.vida.documentParams().id, json, texte).catch(() => {
+                    if (!this.avertiBrouillon) {
+                        this.avertiBrouillon = true;
+                        this.$buefy.toast.open({ message: this.$t('EDIT.DRAFT.FAILED'), type: 'is-warning', duration: 6000 });
+                    }
+                });
+            } catch (e) { /* export impossible pendant un chargement : on réessaiera à la prochaine modification */ }
+        },
+        proposerBrouillon() {
+            return dernierTravail().then(
+                (t) =>
+                    new Promise((resolve) => {
+                        if (!t || !t.json) return resolve(undefined);
+                        const date = new Date(t.date).toLocaleString(this.$i18n.locale);
+                        this.$buefy.dialog.confirm({
+                            title: this.$t('EDIT.DRAFT.TITLE'),
+                            message: this.$t('EDIT.DRAFT.MESSAGE', { date, resume: t.resume || '' }),
+                            confirmText: this.$t('EDIT.DRAFT.RESUME'),
+                            cancelText: this.$t('EDIT.DRAFT.NEW'),
+                            type: 'is-info',
+                            hasIcon: true,
+                            onConfirm: () => resolve(t.json),
+                            onCancel: () => resolve(undefined),
+                        });
+                    }),
+            );
+        },
         toggleDrawer(side) {
             const key = 'rightOpen';
             this[key] = !this[key];
@@ -400,6 +442,7 @@ export default {
                         };
 
                         this.vida.onComponentUpdated = (id) => {
+                            if (!this.isLoading) this.marquerModifie();
                             if (this.selectedComponent !== undefined && this.selectedComponent === id) {
                                 this.selectedComponentOptions = this.vida.componentParams(id);
                                 ++this.rerenderSelectedComponent;
@@ -425,6 +468,8 @@ export default {
                         } else {
                             resolve();
                             this.isLoading = false;
+                            this.hasChanged = false;
+                            this.brouillonPret = true;
                         }
                     })
                     .catch((error) => {
@@ -485,6 +530,8 @@ export default {
             this.isLoading = true;
             this.isExporting = false;
             this.hasChanged = false;
+            this.brouillonPret = false;
+            clearTimeout(this.minuterieBrouillon);
             this.vidaStore.setup('whiteboard');
             this.rerenderImagesList = 0;
             this.rerenderTextsList = 0;
@@ -499,7 +546,12 @@ export default {
             return new Promise((resolve) => {
                 this.getTemplateJson().then((templateJson) => {
                     fontsLoaded().then(() => {
-                        if (templateJson == undefined) {
+                        const propose = templateJson == undefined && this.exportType(this.$route) === undefined
+                            ? this.proposerBrouillon() : Promise.resolve(undefined);
+                        propose.then((brouillon) => {
+                        if (brouillon !== undefined) {
+                            this.load(brouillon).then(() => resolve());
+                        } else if (templateJson == undefined) {
                             this.reset();
 
                             // This is very ugly
@@ -522,12 +574,13 @@ export default {
                         } else {
                             this.load(templateJson).then(() => resolve());
                         }
+                        });
                     });
                 });
             });
         },
         updateDocument(options) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const rerender = options.rules !== undefined || _get(options, 'i18n.editingLocale') !== undefined;
             const fitCanvas = options.width !== undefined || options.height !== undefined;
             return new Promise((resolve) => {
@@ -541,9 +594,10 @@ export default {
             });
         },
         updateComponent(id, options) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const rerender = options.zIndex !== undefined
                 || options.flipX !== undefined || options.flipY !== undefined
+                || (options.boxWidth !== undefined && (options.boxWidth > 0) !== ((this.selectedComponentOptions.boxWidth || 0) > 0))
                 || (options.image !== undefined && options.image.crop !== undefined)
                 || (options.rules !== undefined && options.rules[Object.keys(options.rules)[0]].fixed !== undefined)
                 || (this.editingLang !== undefined && _get(options.i18n[this.editingLang.code], 'text') === null)
@@ -557,7 +611,7 @@ export default {
             });
         },
         removeComponent(id) {
-            this.hasChanged = true;
+            this.marquerModifie();
             this.vida.removeComponent(id);
             if (this.cacheImage[id]) {
                 delete this.cacheImage[id];
@@ -571,7 +625,7 @@ export default {
             }
         },
         duplicateComponent(id) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const options = this.vida.componentParams(id);
             options.id = generateId();
             options.position.x *= 1.05;
@@ -596,12 +650,12 @@ export default {
             });
         },
         undoComponent(id) {
-            this.hasChanged = true;
+            this.marquerModifie();
             this.vida.undoComponent(id);
             // TODO: rerender
         },
         redoComponent(id) {
-            this.hasChanged = true;
+            this.marquerModifie();
             this.vida.redoComponent(id);
             // TODO: rerender
         },
@@ -624,7 +678,7 @@ export default {
             });
         },
         addIllustration(element) {
-            this.hasChanged = true;
+            this.marquerModifie();
             this.vida.createRandomComponent('internalsvg').then((componentId) => {
                 this.vida
                     .updateComponent(componentId, { image: { ...element, gallery: 'images', type: 'internalsvg' } })
@@ -722,7 +776,7 @@ export default {
                 return;
             }
             this.stopDrawing();
-            this.hasChanged = true;
+            this.marquerModifie();
             const scale = 100 / (r.k * Math.max(r.docWidth / r.width, r.docHeight / r.height));
             this.vida.createRandomComponent('internalsvg').then((componentId) => {
                 this.vida
@@ -739,7 +793,7 @@ export default {
             });
         },
         addPhoto(dataUrl, width, height, then) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const docWidth = this.cacheDocument.width || 1000;
             const docHeight = this.cacheDocument.height || 1000;
             // Échelle qui fait tenir toute la photo dans le visuel
@@ -756,7 +810,7 @@ export default {
             });
         },
         addText(kind) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const isTitle = kind === 'title';
             const width = this.cacheDocument.width || 1000;
             const override = {
@@ -779,7 +833,7 @@ export default {
             this.createComponent('geometry', preset);
         },
         createComponent(type, extra) {
-            this.hasChanged = true;
+            this.marquerModifie();
             const randomOverride = {};
             switch(type) {
                 case 'text': {        // const font = fonts[Math.floor(Math.random() * fonts.length)];
@@ -1171,6 +1225,9 @@ export default {
         document.dispatchEvent(new Event('x-app-rendered'));
 
         window.addEventListener('resize', this.handleResize);
+        this.sauverMaintenant = () => this.sauverBrouillon();
+        window.addEventListener('pagehide', this.sauverMaintenant);
+        document.addEventListener('visibilitychange', this.sauverMaintenant);
 
         if (isMobile()) {
             this.raiseMobileConfirm();
@@ -1197,6 +1254,9 @@ export default {
 
     },
     beforeDestroy: function () {
+        this.sauverBrouillon();
+        window.removeEventListener('pagehide', this.sauverMaintenant);
+        document.removeEventListener('visibilitychange', this.sauverMaintenant);
         window.removeEventListener('resize', this.handleResize);
         this.vida.destroy();
     },
@@ -1240,6 +1300,11 @@ export default {
 </script>
 
 <style lang="scss">
+/* les fenêtres de dialogue (ex. reprise du travail en cours) passent au-dessus du voile de chargement */
+.modal.is-active.dialog {
+    z-index: 1100;
+}
+
 .editor {
     min-height: calc(100vh - 100px);
 }

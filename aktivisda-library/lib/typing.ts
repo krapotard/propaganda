@@ -98,6 +98,8 @@ export interface ComponentParams {
     size: number;
     color: string;
     justification: string;
+    // Largeur (px) d'une zone de texte à retour à la ligne automatique ; 0 ou absent = largeur automatique
+    boxWidth: number;
     angle: number;
     // Inclinaison (en degrés), uniquement pour les photos
     flipX: boolean;

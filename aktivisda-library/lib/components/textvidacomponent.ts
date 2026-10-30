@@ -184,7 +184,10 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             });
         }
 
-        const lines = this.konvaElementText.text().split('\n');
+        // Lignes réellement affichées (retours à la ligne automatiques d'une zone de largeur fixe compris)
+        const textArr: { text: string; lastInParagraph?: boolean }[] = (this.konvaElementText as any).textArr || [];
+        const lines: string[] = textArr.length ? textArr.map((l) => l.text) : this.konvaElementText.text().split('\n');
+        const lastInParagraph = (index: number): boolean => (textArr.length ? textArr[index].lastInParagraph !== false : true);
 
         const dy = this.konvaElementText.fontSize() * this.konvaElementText.lineHeight();
 
@@ -193,7 +196,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
         let computeTextX = (line: string, alignment: string) => {
             if (!this.konvaElementText) return 0;
 
-            if (alignment === 'left') return this.konvaElementText.x();
+            if (alignment === 'left' || alignment === 'justify') return this.konvaElementText.x();
 
             let context = this.vida.layer.getCanvas().getContext();
 
@@ -213,6 +216,29 @@ export default class TextVidaComponent extends AbstractVidaComponent {
         const konvaAlignment = this.konvaElementText.align()!;
 
         let ascentRatio = 0.355;
+
+        // Texte justifié : les mots d'une ligne (sauf la dernière du paragraphe) sont répartis sur toute la largeur de la zone
+        const justifiedTspans = (line: string, index: number, dx: number): string => {
+            const words = line.trim().split(/\s+/);
+            const first = `dy="${index == 0 ? +ascentRatio * dy : dy}"`;
+            if (konvaAlignment !== 'justify' || lastInParagraph(index) || words.length < 2) {
+                return `<tspan x="${offset + dx + computeTextX(line, konvaAlignment)!}" ${first}>${encodeTextSvg(line)}</tspan>`;
+            }
+            const ctx = this.vida.layer.getCanvas().getContext();
+            const backupFont = ctx.font;
+            ctx.font = this.konvaElementText!._getContextFont();
+            const widths = words.map((w) => ctx.measureText(w).width);
+            ctx.font = backupFont;
+            const gap = (this.konvaElementText!.width() - widths.reduce((a, b) => a + b, 0)) / (words.length - 1);
+            let x = offset + dx + this.konvaElementText!.x();
+            return words
+                .map((w, i) => {
+                    const t = `<tspan x="${x}" ${i == 0 ? first : ''}>${encodeTextSvg(w)}</tspan>`;
+                    x += widths[i] + gap;
+                    return t;
+                })
+                .join('');
+        };
         // if (this.konvaElementText.fontFamily() === 'Roboto Medium')
         //     ascentRatio = 1536/2048.;
         // else
@@ -234,13 +260,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                     style="font-family: ${this.konvaElementText.fontFamily()}"
                     alignment-baseline="alphabetic"
                     y="${textY + this.shadowY}">
-                    ${lines
-                        .map(
-                            (line: string, index: number) =>
-                                `<tspan x="${offset + this.shadowX + computeTextX(line, konvaAlignment)!}"
-                                dy="${index == 0 ? +ascentRatio * dy : dy}">${encodeTextSvg(line)}</tspan>`,
-                        )
-                        .join('')}
+                    ${lines.map((line: string, index: number) => justifiedTspans(line, index, this.shadowX)).join('')}
                 </text>`;
         }
 
@@ -254,12 +274,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             style="font-family: ${this.konvaElementText.fontFamily()}"
             alignment-baseline="alphabetic"
             y="${textY}">
-            ${lines
-                .map(
-                    (line: string, index: number) =>
-                        `<tspan x="${offset + computeTextX(line, konvaAlignment)!}" dy="${index == 0 ? +ascentRatio * dy : dy}">${encodeTextSvg(line)}</tspan>`,
-                )
-                .join('')}
+            ${lines.map((line: string, index: number) => justifiedTspans(line, index, 0)).join('')}
         </text>
          </svg>`;
 
@@ -559,6 +574,8 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                             text: this.textValue(),
                             fill: options.color,
                             align: options.justification,
+                            width: (options.boxWidth && options.boxWidth > 0 ? options.boxWidth : 'auto') as any,
+                            wrap: 'word',
                             fontSize: options.size,
                             fontFamily: options.font,
                             padding: 0,
@@ -683,6 +700,17 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             if (options.justification !== undefined && this.konvaElementText.align() !== options.justification) {
                 this.konvaElementText.align(options.justification);
                 this.draw = true;
+            }
+
+            // Zone de texte de largeur fixe (retour à la ligne automatique) ou largeur automatique
+            if (this.type !== 'emoji' && options.boxWidth !== undefined) {
+                const wantedWidth = options.boxWidth && options.boxWidth > 0 ? options.boxWidth : 'auto';
+                if ((this.konvaElementText.getAttr('width') ?? 'auto') !== wantedWidth) {
+                    this.konvaElementText.width(wantedWidth as any);
+                    this._recomputePosition = true;
+                    if (this.supportBackground()) recomputeTextBackground = true;
+                    this.draw = true;
+                }
             }
 
             let recomputeShadow = false;

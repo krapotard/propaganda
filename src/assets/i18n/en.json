@@ -297,6 +297,13 @@
             "HELP_CTA": "Help with translation",
             "HELP_MODAL": "This template is ready to be translated. You can contribute to its translation by <a href='mailto:{email}'>contacting the administrators</a>."
         },
+        "DRAFT": {
+            "FAILED": "Automatic saving in this browser is not possible (not enough space or private browsing). Remember to use \"Save\".",
+            "MESSAGE": "Work in progress was found, saved in this browser on {date} {resume}. Do you want to resume it?",
+            "NEW": "New visual",
+            "RESUME": "Resume",
+            "TITLE": "Work in progress found"
+        },
         "UNSAVED_WORK": {
             "MESSAGE": "Be careful, by leaving this page you will lose your ongoing changes.",
             "QUIT_BUTTON": "Leave",
@@ -391,6 +398,7 @@
         "DEFAULT_TEXT": "More about aktivisda.earth",
         "LABEL": "Text | Texts",
         "PLACEHOLDER": "Your text here",
+        "BOX": "Fixed-width text box",
         "SHADOW": "Shadow"
     },
     "WELCOME": {
