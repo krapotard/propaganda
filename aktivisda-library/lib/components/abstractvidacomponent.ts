@@ -3,11 +3,12 @@
 import Vida from '../vida.ts'
 import { Uuid, ComponentOptions, DocumentParams, PdfFormat, Point, Dimensions, Rule} from '../typing.ts';
 import { assignValues, overrideValues } from '../utils/utils.ts';
-import { computeAbsolutePosition, computeRelativePosition } from '../utils/positionutils.ts';
+import { computeAbsolutePosition, computeRelativePosition, pxToPt } from '../utils/positionutils.ts';
 import _get from 'lodash.get'
 import _set from 'lodash.set'
 
 import Konva from 'konva';
+import { applyNodeEffects, blurMargin } from '../utils/effects.ts';
 
 
 export default class AbstractVidaComponent {
@@ -179,9 +180,86 @@ export default class AbstractVidaComponent {
         return this._update(options, document);
     }
 
+    /** Opacité (0 à 1) de l'élément. */
+    effectOpacity(): number {
+        const v = this.optionsValue('opacity');
+        return typeof v === 'number' ? v : 1;
+    }
+
+    /** Flou de l'élément, en pixels du visuel (0 = net). */
+    effectBlur(): number {
+        const v = this.optionsValue('blur');
+        return typeof v === 'number' ? v : 0;
+    }
+
+    /** Applique opacité et flou au noeud Konva (à appeler après chaque mise à jour du noeud). */
+    applyEffects() {
+        if (!this.konvaElement) return;
+        applyNodeEffects(this.konvaElement, this.effectOpacity(), this.effectBlur());
+        this.vida.draw();
+    }
+
+    /**
+     * Export PDF d'un élément flou : le flou n'existe pas en vectoriel dans un PDF, l'élément
+     * (et lui seul) est donc rendu en image transparente à 2x, rognée autour de l'élément.
+     */
+    async effectsToPdf(): Promise<PdfFormat | undefined> {
+        if (!this.konvaElement) return undefined;
+        const blur = this.effectBlur();
+        const { width, height } = this.documentSize;
+        const container = document.createElement('div');
+        const stage = new Konva.Stage({ container, width, height });
+        const layer = new Konva.Layer();
+        stage.add(layer);
+        const node = this.konvaElement.clone();
+        node.off();
+        node.draggable(false);
+        layer.add(node);
+        applyNodeEffects(node, this.effectOpacity(), blur);
+        const margin = blurMargin(blur);
+        const rect = node.getClientRect({ skipShadow: false });
+        let x = Math.floor(rect.x - margin);
+        let y = Math.floor(rect.y - margin);
+        let w = Math.ceil(rect.width + 2 * margin);
+        let h = Math.ceil(rect.height + 2 * margin);
+        // reste dans la page
+        const x2 = Math.min(width, x + w);
+        const y2 = Math.min(height, y + h);
+        x = Math.max(0, x);
+        y = Math.max(0, y);
+        w = x2 - x;
+        h = y2 - y;
+        if (w <= 0 || h <= 0) {
+            stage.destroy();
+            return { content: [], status: 'ok' };
+        }
+        const pixelRatio = Math.min(2, 4096 / Math.max(w, h));
+        layer.draw();
+        const url = stage.toDataURL({ x, y, width: w, height: h, pixelRatio, mimeType: 'image/png' });
+        stage.destroy();
+        return {
+            content: [
+                {
+                    image: url,
+                    absolutePosition: { x: pxToPt(x), y: pxToPt(y) },
+                    width: pxToPt(w),
+                    height: pxToPt(h),
+                },
+            ],
+            status: 'ok',
+        };
+    }
+
     // Check sur les options possibles.
     // Mise à jour de l'objet selon les options avec l'utilisation d'un cache.
     _update(options: ComponentOptions, document: Partial<DocumentParams>): Promise<boolean | void> {
+        return this._updateOptions(options, document).then((r) => {
+            this.applyEffects();
+            return r;
+        });
+    }
+
+    _updateOptions(options: ComponentOptions, document: Partial<DocumentParams>): Promise<boolean | void> {
 
         // Todo check the options? Lock?change
         assignValues(this.options, options, undefined);

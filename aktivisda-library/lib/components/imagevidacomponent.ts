@@ -96,6 +96,8 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
             skewY: this.options.skewY || 0,
             flipX: !!this.options.flipX,
             flipY: !!this.options.flipY,
+            opacity: this.options.opacity === undefined ? 1 : this.options.opacity,
+            blur: this.options.blur || 0,
             zIndex: this.zIndex(),
             i18n: this.options.i18n,
             rules: this.options.rules !== undefined ? this.options.rules : {},
@@ -533,6 +535,7 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
         // only one state in undohistory for both scale and position
         // Otherwise undo behavior is a little bit strange
         this._adjustPosition();
+        this.applyEffects();
         if (this._cleanUndoHistory()) return;
         this.vida.onComponentUpdated(this.id());
     }

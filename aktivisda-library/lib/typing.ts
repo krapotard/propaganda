@@ -100,9 +100,14 @@ export interface ComponentParams {
     justification: string;
     // Largeur (px) d'une zone de texte à retour à la ligne automatique ; 0 ou absent = largeur automatique
     boxWidth: number;
+    // Adresse web (ou mailto:, tel:) rendue cliquable dans l'export PDF
+    link: string;
     angle: number;
     // Inclinaison (en degrés), uniquement pour les photos
     flipX: boolean;
+    // Effets sur l'élément : opacité (0 à 1) et flou (en pixels du visuel, 0 = net)
+    opacity: number;
+    blur: number;
     flipY: boolean;
     skewX: number;
     skewY: number;

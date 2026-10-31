@@ -72,6 +72,13 @@
                     </div>
 
                     <div v-if="!inTranslationMode" class="mt-2">
+                        <b-field :label="$t('TEXTS.LINK')" :message="$t('TEXTS.LINK_HELP')">
+                            <b-input type="url" :value="optionValue('link') || ''" icon="link"
+                                placeholder="https://cgtftocc.org" @input="(e) => emitValue('link')(e)" />
+                        </b-field>
+                    </div>
+
+                    <div v-if="!inTranslationMode" class="mt-2">
                         <b-switch v-model="boxEnabled">{{ $t('TEXTS.BOX') }}</b-switch>
                         <number-picker v-if="boxEnabled" :min="20" :max="Math.max(width || 0, optionValue('boxWidth') || 0, 200)"
                             :value="optionValue('boxWidth')" @input="(e) => emitValue('boxWidth')(e)" unit="px"
@@ -130,6 +137,8 @@
                 </template>
             </picker-container>
 
+            <effects-picker :options="options" @update="(o) => $emit('update', o)" />
+
             <picker-container :label="$t('COMMON.ANGLE')" :rule="rule('angle') ">
                 <template v-slot:enabled-switch>
                     <rule-picker v-if="!inTranslationMode" tipPosition="is-left" :value="rule('angle')"
@@ -187,6 +196,7 @@ import FontPicker from '@/components/pickers/FontPicker.vue';
 import PositionPicker from '@/components/pickers/PositionPicker.vue';
 import ChoicePicker from '@/components/pickers/ChoicePicker.vue';
 import RulePicker from '@/components/pickers/RulePicker.vue';
+import EffectsPicker from '@/components/pickers/EffectsPicker.vue';
 import PickerContainer from '@/components/pickers/PickerContainer.vue';
 import ComponentToolbar from '@/components/pickers/ComponentToolbar.vue';
 import TextPicker from '@/components/pickers/TextPicker.vue';
@@ -199,7 +209,7 @@ import ChoiceListEditor from '../pickers/ChoiceListEditor.vue';
 
 export default {
     name: 'text-input-component',
-    components: { ColorPicker, NumberPicker, FontPicker, PositionPicker, ChoicePicker, PickerContainer, RulePicker, ComponentToolbar, TextPicker },
+    components: { EffectsPicker, ColorPicker, NumberPicker, FontPicker, PositionPicker, ChoicePicker, PickerContainer, RulePicker, ComponentToolbar, TextPicker },
     props: {
         componentId: String,
         width: Number,

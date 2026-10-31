@@ -249,6 +249,7 @@ export default {
                 { id: 'triangle', label: 'Triangle', icon: 'triangle-outline' },
                 { id: 'polygon', label: 'Polygone', icon: 'hexagon-outline' },
                 { id: 'star', label: 'Étoile', icon: 'star-outline' },
+                { id: 'line', label: 'Ligne', icon: 'minus' },
             ],
             vz: { state: 'idle', term: '', type: 'png', items: [], page: 1, lastPage: 1, used: 0, max: 450, busy: false, error: '', searched: false },
             vzTypes: [

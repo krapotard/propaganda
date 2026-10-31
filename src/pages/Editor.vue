@@ -845,7 +845,13 @@ export default {
                     break;
                 }
                 case 'geometry': {
-                    randomOverride['image'] = { type: 'geometry', fill: this.store.randomElement('colors').html, ...(extra || {}) };
+                    const couleur = this.store.randomElement('colors').html;
+                    if (extra && extra.shape === 'line') {
+                        // longueur par défaut : 60 % de la largeur du visuel (l'échelle se mesure sur max(largeur, 2 x hauteur))
+                        const dw = this.cacheDocument.width, dh = this.cacheDocument.height;
+                        randomOverride['scale'] = Math.max(1, Math.round((60 * dw) / Math.max(dw, 2 * dh)));
+                    }
+                    randomOverride['image'] = { type: 'geometry', fill: couleur, ...(extra && extra.shape === 'line' ? { stroke: couleur, strokeWidth: 8 } : {}), ...(extra || {}) };
                     break;
                 }
 
