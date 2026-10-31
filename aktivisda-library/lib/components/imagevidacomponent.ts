@@ -105,22 +105,36 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
         return result;
     }
 
+    /**
+     * Dimensions réellement affichées de l'image (en px du visuel).
+     * Après un redimensionnement à la souris, Konva garde width()/height() d'origine et
+     * stocke le facteur dans scaleX()/scaleY() : il faut en tenir compte pour l'export PDF.
+     */
+    displayedSize(): { width: number; height: number } {
+        const el = this.konvaElement!;
+        return {
+            width: el.width() * Math.abs(el.scaleX()),
+            height: el.height() * Math.abs(el.scaleY()),
+        };
+    }
+
     async toPdf(): Promise<PdfFormat | undefined> {
         if (!this.konvaElement) return undefined;
         const { x, y } = computeAbsolutePosition(this.displayedPosition, this.documentSize!);
+        const shown = this.displayedSize();
         const r = {
             absolutePosition: {
-                x: pxToPt(x - this.konvaElement.width() / 2),
-                y: pxToPt(y - this.konvaElement.height() / 2),
+                x: pxToPt(x - shown.width / 2),
+                y: pxToPt(y - shown.height / 2),
             },
-            width: pxToPt(this.konvaElement.width()),
-            height: pxToPt(this.konvaElement.height()),
+            width: pxToPt(shown.width),
+            height: pxToPt(shown.height),
             svg: ''
         };
 
         const angle = this.currentAngle()!;
         if (angle != 0) {
-            const { width, height } = computeRotatedViewbox(0, 0, this.konvaElement.width(), this.konvaElement.height(), degToRadian(angle));
+            const { width, height } = computeRotatedViewbox(0, 0, shown.width, shown.height, degToRadian(angle));
             r.width = pxToPt(width);
             r.height = pxToPt(height);
             r.absolutePosition.x = pxToPt(x - width / 2);
@@ -144,8 +158,8 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
         const skewY = this.options.skewY || 0;
         if (skewX !== 0 || skewY !== 0) {
             // Même transformation que Konva : rotation puis cisaillement, autour du centre de l'image.
-            const w = this.konvaElement.width();
-            const h = this.konvaElement.height();
+            const w = shown.width;
+            const h = shown.height;
             const sx = Math.tan(degToRadian(skewX));
             const sy = Math.tan(degToRadian(skewY));
             const rad = degToRadian(angle);
@@ -176,7 +190,7 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
             const dom = svgToDom(r.svg);
             const svgElement = <SVGSVGElement><any>dom.documentElement;
             const viewBox = svgElement.getAttribute('viewBox')?.split(' ')
-                .map((x) => parseInt(x));
+                .map((x) => parseFloat(x));
             if (viewBox === undefined || viewBox.length !== 4) {
                 throw new InvalidDataError('Undefined viewbox while rotating svg inside toPdf')
             }
