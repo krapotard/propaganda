@@ -15,6 +15,34 @@
             </b-button>
         </div>
 
+        <!-- Line -->
+        <template v-if="shape === 'line'">
+            <div class="shape-section">
+                <p class="label is-small">{{ $t('SHAPES.LINE_COLOR') }}</p>
+                <color-picker :value="stroke" :alphaEnabled="true" :dropColorEnabled="true" @input="(c) => emit({ stroke: c })" />
+                <b-field :label="$t('SHAPES.LINE_WIDTH')" class="shape-field">
+                    <b-slider :min="1" :max="50" :step="1" :value="strokeWidth" :tooltip="true" size="is-small"
+                        @change="(v) => emit({ strokeWidth: v })" />
+                </b-field>
+                <div class="buttons has-addons shape-buttons">
+                    <b-button v-for="st in ['solid', 'dashed', 'dotted']" :key="st" size="is-small"
+                        :type="lineStyle === st ? 'is-primary' : ''" :data-linestyle="st" @click="emit({ lineStyle: st })">
+                        {{ $t('SHAPES.' + st.toUpperCase()) }}
+                    </b-button>
+                </div>
+                <p class="label is-small">{{ $t('SHAPES.CAP_START') }}</p>
+                <div class="buttons has-addons shape-buttons">
+                    <b-button v-for="c in caps" :key="'s' + c" size="is-small" :type="capStart === c ? 'is-primary' : ''"
+                        :data-capstart="c" @click="emit({ capStart: c })">{{ $t('SHAPES.CAP_' + c.toUpperCase()) }}</b-button>
+                </div>
+                <p class="label is-small">{{ $t('SHAPES.CAP_END') }}</p>
+                <div class="buttons has-addons shape-buttons">
+                    <b-button v-for="c in caps" :key="'e' + c" size="is-small" :type="capEnd === c ? 'is-primary' : ''"
+                        :data-capend="c" @click="emit({ capEnd: c })">{{ $t('SHAPES.CAP_' + c.toUpperCase()) }}</b-button>
+                </div>
+            </div>
+        </template>
+
         <!-- Rectangle & ellipse -->
         <template v-if="shape === 'rect' || shape === 'ellipse'">
             <b-field :label="$t('SHAPES.RATIO')" class="shape-field">
@@ -59,7 +87,7 @@
         </template>
 
         <!-- Fill -->
-        <div class="shape-section">
+        <div v-if="shape !== 'line'" class="shape-section">
             <b-switch :value="hasFill" size="is-small" class="shape-switch" @input="(v) => emit({ fill: v ? lastFill : 'none' })">
                 {{ $t('SHAPES.FILL') }}
             </b-switch>
@@ -67,7 +95,7 @@
         </div>
 
         <!-- Border -->
-        <div class="shape-section">
+        <div v-if="shape !== 'line'" class="shape-section">
             <b-switch :value="border" size="is-small" class="shape-switch" @input="(v) => emit({ border: v })">
                 {{ $t('SHAPES.BORDER') }}
             </b-switch>
@@ -93,12 +121,14 @@ export default {
     },
     data() {
         return {
+            caps: ['flat', 'round', 'ball', 'arrow'],
             kinds: [
                 { id: 'rect', icon: 'rectangle-outline' },
                 { id: 'ellipse', icon: 'circle-outline' },
                 { id: 'triangle', icon: 'triangle-outline' },
                 { id: 'polygon', icon: 'hexagon-outline' },
                 { id: 'star', icon: 'star-outline' },
+                { id: 'line', icon: 'minus' },
             ],
             // Remembers the fill color while "no fill" is selected
             lastFill: this.value.fill && this.value.fill !== 'none' ? this.value.fill : '#cc0000',
@@ -116,6 +146,9 @@ export default {
         hasFill() { return this.value.fill !== 'none'; },
         border() { return this.value.border === true; },
         stroke() { return this.value.stroke || '#000000'; },
+        lineStyle() { return this.value.lineStyle || 'solid'; },
+        capStart() { return this.value.capStart || 'flat'; },
+        capEnd() { return this.value.capEnd || 'flat'; },
         strokeWidth() { return this.value.strokeWidth === undefined ? 8 : this.value.strokeWidth; },
     },
     methods: {
@@ -132,6 +165,7 @@ export default {
                 case 'rect':
                 case 'ellipse':
                 case 'star':
+                case 'line':
                     this.emit({ shape: id });
                     break;
                 case 'triangle':

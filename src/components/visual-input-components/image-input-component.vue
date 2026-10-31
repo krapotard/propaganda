@@ -62,6 +62,8 @@ const vStore = useVidaStore();
                     </template>
                 </picker-container>
 
+                <effects-picker :options="options" @update="(o) => $emit('update', o)" />
+
                 <picker-container :label="$t('COMMON.SIZE')" :rule="rule('size')">
                     <template v-slot:enabled-switch>
                         <rule-picker v-if="!inTranslationMode" tipPosition="is-left" :value="rule('size')"
@@ -98,6 +100,7 @@ const vStore = useVidaStore();
 import ImagePicker from '@/components/pickers/ImagePicker.vue';
 import PositionPicker from '@/components/pickers/PositionPicker.vue';
 import NumberPicker from '@/components/pickers/NumberPicker.vue';
+import EffectsPicker from '@/components/pickers/EffectsPicker.vue';
 import PickerContainer from '@/components/pickers/PickerContainer.vue';
 import ComponentToolbar from '@/components/pickers/ComponentToolbar.vue';
 import CropModal from '@/components/pickers/CropModal.vue';
@@ -109,7 +112,7 @@ import _set from 'lodash.set'
 
 export default {
     name: 'image-input-component',
-    components: { ImagePicker, PositionPicker, NumberPicker, PickerContainer, ComponentToolbar, RulePicker },
+    components: { EffectsPicker, ImagePicker, PositionPicker, NumberPicker, PickerContainer, ComponentToolbar, RulePicker },
     props: {
         componentId: String,
         fieldLabel: String,

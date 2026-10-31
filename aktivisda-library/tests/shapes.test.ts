@@ -46,3 +46,23 @@ test('without irregularity a regular polygon has equal radii', () => {
     const pts = shapePoints(normalizeShapeOptions({ shape: 'polygon', sides: 6, irregularity: 0 }));
     for (const [x, y] of pts) expect(Math.hypot(x, y)).toBeCloseTo(1, 6);
 });
+
+test('line: horizontal stroke, styles, thin line stays selectable', () => {
+    const solid = buildShape({ shape: 'line', stroke: '#112233', strokeWidth: 4 });
+    expect(solid.svg).toContain('<line');
+    expect(solid.svg).toContain('stroke="#112233"');
+    expect(solid.svg).not.toContain('dasharray');
+    expect(solid.height).toBe(200);
+    expect(buildShape({ shape: 'line', strokeWidth: 50 }).height).toBe(200);
+    expect(Number.isInteger(solid.width) && Number.isInteger(solid.height)).toBe(true);
+    expect(buildShape({ shape: 'line', lineStyle: 'dashed' }).svg).toContain('stroke-dasharray');
+    const dotted = buildShape({ shape: 'line', lineStyle: 'dotted', strokeWidth: 10 }).svg;
+    expect(dotted).toContain('stroke-linecap="round"');
+    const arrow = buildShape({ shape: 'line', strokeWidth: 10, capStart: 'arrow', capEnd: 'ball' });
+    expect(arrow.svg).toContain('<polygon');
+    expect(arrow.svg).toContain('<circle');
+    expect(arrow.height).toBe(200);
+    expect(buildShape({ shape: 'line', capEnd: 'round' }).svg).toContain('<path');
+    expect(normalizeShapeOptions({ capStart: 'zzz' as any }).capStart).toBe('flat');
+        expect(normalizeShapeOptions({ lineStyle: 'x' as any }).lineStyle).toBe('solid');
+});

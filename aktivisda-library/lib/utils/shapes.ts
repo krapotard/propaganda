@@ -9,7 +9,9 @@
  * so a template can be saved and reloaded identically. Change the seed to draw a new one.
  */
 
-export type ShapeType = 'rect' | 'ellipse' | 'polygon' | 'star';
+export type ShapeType = 'rect' | 'ellipse' | 'polygon' | 'star' | 'line';
+export type LineCap = 'flat' | 'round' | 'ball' | 'arrow';
+export type LineStyle = 'solid' | 'dashed' | 'dotted';
 
 export interface ShapeOptions {
     shape: ShapeType;
@@ -23,7 +25,10 @@ export interface ShapeOptions {
     fill: string; // #rrggbb or 'none'
     border: boolean; // draw an outline or not
     stroke: string; // border color, #rrggbb
-    strokeWidth: number; // border width, 1..40
+    strokeWidth: number; // border width, 1..50
+    lineStyle: LineStyle; // line: solid, dashed or dotted
+    capStart: LineCap; // line: left end (flat, round, ball, arrow)
+    capEnd: LineCap; // line: right end
 }
 
 export interface BuiltShape {
@@ -46,12 +51,19 @@ export const DEFAULT_SHAPE_OPTIONS: ShapeOptions = {
     border: false,
     stroke: '#000000',
     strokeWidth: 8,
+    lineStyle: 'solid',
+    capStart: 'flat',
+    capEnd: 'flat',
 };
 
 export const SHAPE_KEYS = Object.keys(DEFAULT_SHAPE_OPTIONS) as Array<keyof ShapeOptions>;
 
 const BASE = 400; // longest side of the generated svg
-const SHAPE_TYPES: ShapeType[] = ['rect', 'ellipse', 'polygon', 'star'];
+const SHAPE_TYPES: ShapeType[] = ['rect', 'ellipse', 'polygon', 'star', 'line'];
+const LINE_STYLES: LineStyle[] = ['solid', 'dashed', 'dotted'];
+const LINE_CAPS: LineCap[] = ['flat', 'round', 'ball', 'arrow'];
+const LINE_HEIGHT = 200; // fixed: the editor sizes an image from its aspect ratio, so the length must not change with the thickness
+const LINE_HIT_MIN = 30; // a thin line stays easy to select
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const num = (value: unknown, fallback: number) => (typeof value === 'number' && isFinite(value) ? value : fallback);
@@ -85,7 +97,10 @@ export function normalizeShapeOptions(input: Partial<ShapeOptions> | undefined):
         fill: color(o.fill, DEFAULT_SHAPE_OPTIONS.fill, true),
         border: o.border === true,
         stroke: color(o.stroke, DEFAULT_SHAPE_OPTIONS.stroke, false),
-        strokeWidth: clamp(num(o.strokeWidth, 8), 1, 40),
+        strokeWidth: clamp(num(o.strokeWidth, 8), 1, 50),
+        lineStyle: LINE_STYLES.includes(o.lineStyle) ? o.lineStyle : 'solid',
+        capStart: LINE_CAPS.includes(o.capStart) ? o.capStart : 'flat',
+        capEnd: LINE_CAPS.includes(o.capEnd) ? o.capEnd : 'flat',
     };
 }
 
@@ -134,6 +149,49 @@ export function buildShape(input: Partial<ShapeOptions> | undefined): BuiltShape
         paintAttr('fill', o.fill) + (o.border ? ` ${paintAttr('stroke', o.stroke)} stroke-width="${round(o.strokeWidth)}" stroke-linejoin="round"` : '');
     const wrap = (width: number, height: number, element: string) =>
         `<svg xmlns="http://www.w3.org/2000/svg" width="${round(width)}" height="${round(height)}" viewBox="0 0 ${round(width)} ${round(height)}">${element}</svg>`;
+
+    if (o.shape === 'line') {
+        // Horizontal line; rotate / resize it in the editor. Integer sizes (see below).
+        const t = Math.round(o.strokeWidth);
+        const width = BASE;
+        // Reach of each end beyond the body: round = t/2, ball = 1.5t, arrow = 3t
+        // ball: the body starts where it exactly meets the circle; no overlap, so a semi-transparent line has no darker spots
+        const reach = (cap: LineCap) => (cap === 'round' ? t / 2 : cap === 'ball' ? 1.5 * t + Math.sqrt(2) * t : cap === 'arrow' ? 3 * t : 0);
+        const height = LINE_HEIGHT;
+        const half = Math.max(t / 2, o.capStart === 'ball' || o.capEnd === 'ball' ? 1.5 * t : 0, o.capStart === 'arrow' || o.capEnd === 'arrow' ? 1.75 * t : 0);
+        const y = height / 2;
+        const dotted = o.lineStyle === 'dotted';
+        const x0 = reach(o.capStart);
+        const x1 = width - reach(o.capEnd);
+        // Dotted: round dots centred on the body ends
+        const b0 = x0 + (dotted && o.capStart === 'flat' ? t / 2 : 0);
+        const b1 = x1 - (dotted && o.capEnd === 'flat' ? t / 2 : 0);
+        const dash = o.lineStyle === 'dashed' ? `${round(t * 3)} ${round(t * 2)}` : dotted ? `0.01 ${round(t * 2)}` : '';
+        const stroke = paintAttr('stroke', o.stroke);
+        const fill = paintAttr('fill', o.stroke);
+        const overlap = 0;
+        let element =
+            `<line x1="${round(b0)}" y1="${round(y)}" x2="${round(b1)}" y2="${round(y)}" ${stroke} stroke-width="${t}"` +
+            (dotted ? ' stroke-linecap="round"' : '') +
+            (dash ? ` stroke-dasharray="${dash}"` : '') +
+            '/>';
+        const endShape = (cap: LineCap, atStart: boolean) => {
+            const dir = atStart ? 1 : -1;
+            const edge = atStart ? x0 : x1;
+            const tip = atStart ? 0 : width;
+            if (cap === 'round') return `<path d="M ${round(edge)} ${round(y - t / 2)} A ${round(t / 2)} ${round(t / 2)} 0 0 ${atStart ? 0 : 1} ${round(edge)} ${round(y + t / 2)} Z" ${fill}/>`;
+            if (cap === 'ball') return `<circle cx="${round(atStart ? 1.5 * t : width - 1.5 * t)}" cy="${round(y)}" r="${round(1.5 * t)}" ${fill}/>`;
+            if (cap === 'arrow') {
+                const bx = edge + dir * overlap;
+                return `<polygon points="${round(tip)},${round(y)} ${round(bx)},${round(y - 1.75 * t)} ${round(bx)},${round(y + 1.75 * t)}" ${fill}/>`;
+            }
+            return '';
+        };
+        element += endShape(o.capStart, true) + endShape(o.capEnd, false);
+        const hit = Math.max(LINE_HIT_MIN, Math.ceil(half * 2)) / 2;
+        const box: Array<[number, number]> = [[0, y - hit], [width, y - hit], [width, y + hit], [0, y + hit]];
+        return { svg: wrap(width, height, element), width, height, hitform: hitformOf(box) };
+    }
 
     if (o.shape === 'rect' || o.shape === 'ellipse') {
         // Integer sizes: the pdf export of a rotated image reads the viewBox with parseInt

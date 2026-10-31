@@ -16,6 +16,22 @@ import InvalidDataError from '../invaliddataerror.ts';
 
 const DEFAULT_DISTORTION = [[-1, 1], [1, 1], [1, -1], [-1, -1]]
 
+// Image transparente de 1 pixel, support des liens cliquables dans le PDF
+const TRANSPARENT_PIXEL =
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
+/**
+ * Adresse prête à être mise dans un PDF : ajoute https:// si besoin,
+ * n'accepte que http, https, mailto et tel (jamais javascript:).
+ */
+export function normalizeLink(value: unknown): string | undefined {
+    if (typeof value !== 'string') return undefined;
+    let link = value.trim();
+    if (!link) return undefined;
+    if (!/^[a-z][a-z0-9+.-]*:/i.test(link)) link = 'https://' + link.replace(/^\/+/, '');
+    return /^(https?|mailto|tel):/i.test(link) ? link : undefined;
+}
+
 export default class TextVidaComponent extends AbstractVidaComponent {
     type: 'emoji' | 'text' | 'textchoice';
     backgroundDistortion: Array<Array<number>> | undefined;
@@ -287,6 +303,22 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             width: pxToPt(textViewbox.width),
             height: pxToPt(textViewbox.height),
         });
+
+        // Lien cliquable : une image transparente portant le lien est posée sur toute la zone du texte
+        const link = normalizeLink(this.options.link);
+        if (link) {
+            const box = computeRotatedViewbox(0, 0, this.konvaElement.width(), this.konvaElement.height(), degToRadian(this.konvaElement.rotation()));
+            content.push({
+                image: TRANSPARENT_PIXEL,
+                link,
+                absolutePosition: {
+                    x: pxToPt(x - box.width / 2),
+                    y: pxToPt(y - box.height / 2),
+                },
+                width: pxToPt(box.width),
+                height: pxToPt(box.height),
+            });
+        }
 
         return { content, status };
     }

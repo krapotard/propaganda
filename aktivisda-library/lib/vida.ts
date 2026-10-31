@@ -173,7 +173,20 @@ export default class Vida {
         content.push({ zIndex: -1, content: bgPdf!.content });
         if (bgPdf!.status === 'unsupported_option') status = 'unsupported_option';
         const result = await this.components.map(async (component) => {
-            const componentPdf = await component.toPdf();
+            let componentPdf;
+            if (component.effectBlur() > 0) {
+                // Flou : image transparente de l'élément seul (le PDF ne sait pas flouter en vectoriel)
+                componentPdf = await component.effectsToPdf();
+            } else {
+                componentPdf = await component.toPdf();
+                const opacity = component.effectOpacity();
+                if (componentPdf !== undefined && opacity < 1) {
+                    for (const c of componentPdf.content) {
+                        if (typeof c.svg === 'string') c.svg = c.svg.replace(/<svg\b/, `<svg opacity="${opacity}"`);
+                        else c.opacity = opacity;
+                    }
+                }
+            }
             if (componentPdf === undefined) return;
             for (const c of componentPdf.content) {
                 content.push({ zIndex: component.zIndex(), content: c });
