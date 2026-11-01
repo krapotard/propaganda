@@ -22,6 +22,10 @@ export const useVidaStore = defineStore('vidaStore', {
             const store = useStore();
             this.vida.setGallery(store);
 
+            this.vida.onZoomChange = (z) => {
+                this.cache.zoom = z;
+            };
+
             this.vida.onComponentUpdated = (id) => {
                 if (this.rerenderingMap[id] === undefined)
                     this.rerenderingMap = 1;
@@ -33,20 +37,25 @@ export const useVidaStore = defineStore('vidaStore', {
             this.cache.zoom = this.vida.zoom(null);
         },
         zoomOut() {
-            this.cache.zoom /= 1.2
-            this.vida.zoom(this.cache.zoom);
+            this.vida.zoomAt(this.vida.stage.scaleX() / 1.2);
         },
         zoomIn() {
-            this.cache.zoom *= 1.2;
-            this.vida.zoom(this.cache.zoom);
+            this.vida.zoomAt(this.vida.stage.scaleX() * 1.2);
         },
-        undo(componentId) {
-            this.hasChanged = true;
-            this.vida.undoComponent(componentId);
+        // saisie directe : pourcentage (ex. 120)
+        setZoomPercent(percent) {
+            const v = parseFloat(String(percent).replace(',', '.'));
+            if (!isFinite(v) || v <= 0) return;
+            this.vida.zoomAt(v / 100);
         },
-        redo(componentId) {
+        // historique global : l'argument n'est plus utilisé (un seul historique pour tout le visuel)
+        undo() {
             this.hasChanged = true;
-            this.vida.redoComponent(componentId);
+            this.vida.undoGlobal();
+        },
+        redo() {
+            this.hasChanged = true;
+            this.vida.redoGlobal();
         },
     },
     getters: {

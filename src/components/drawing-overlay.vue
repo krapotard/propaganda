@@ -2,7 +2,9 @@
     <canvas
         ref="canvas"
         class="drawing-overlay"
-        :style="{ left: box.left + 'px', top: box.top + 'px', width: box.width + 'px', height: box.height + 'px' }"
+        :style="{ position: 'fixed', zIndex: 4, cursor: 'crosshair', touchAction: 'none', left: box.left + 'px', top: box.top + 'px', width: box.width + 'px', height: box.height + 'px' }"
+        @wheel.prevent="vida.handleWheel($event)"
+        @contextmenu.prevent
         @pointerdown.prevent="down"
         @pointermove.prevent="move"
         @pointerup.prevent="up"
@@ -25,15 +27,21 @@ export default {
         zoom: { type: Number, default: 1 },
     },
     data() {
-        return { box: { left: 0, top: 0, width: 0, height: 0 }, strokes: [], current: undefined, timer: undefined };
+        return { box: { left: 0, top: 0, width: 0, height: 0 }, strokes: [], redoStrokes: [], current: undefined, timer: undefined, panning: undefined };
     },
     mounted() {
         this.start();
         window.addEventListener('resize', this.render);
+        // le visuel bouge (molette, zoom, tiroirs) : le calque de dessin suit
+        this.vida.addViewListener(this.render);
+        // mise en page terminée (tiroirs, polices) : on recale le calque une fois de plus
+        this.lateRender = setTimeout(this.render, 400);
     },
     beforeDestroy() {
         window.removeEventListener('resize', this.render);
+        this.vida.removeViewListener(this.render);
         clearInterval(this.timer);
+        clearTimeout(this.lateRender);
     },
     watch: {
         zoom() {
@@ -90,6 +98,12 @@ export default {
         /* ---------- traits ---------- */
         down(evt) {
             this.$refs.canvas.setPointerCapture(evt.pointerId);
+            // bouton du milieu (molette) ou droit : on déplace la page, on ne dessine pas
+            if (evt.button !== 0) {
+                this.panning = { x: evt.clientX, y: evt.clientY };
+                return;
+            }
+            this.redoStrokes = [];
             const { tool, color, size } = this.settings;
             const p = this.point(evt);
             this.current = { tool, color, size, pts: [p], dots: [] };
@@ -110,6 +124,11 @@ export default {
             this.render();
         },
         move(evt) {
+            if (this.panning) {
+                this.vida.panBy(evt.clientX - this.panning.x, evt.clientY - this.panning.y);
+                this.panning = { x: evt.clientX, y: evt.clientY };
+                return;
+            }
             if (!this.current) return;
             const p = this.point(evt);
             const s = this.current;
@@ -123,10 +142,11 @@ export default {
             this.render();
         },
         up() {
+            this.panning = undefined;
             if (!this.current) return;
             clearInterval(this.timer);
             this.current = undefined;
-            this.$emit('change', this.strokes.length);
+            this.$emit('change', this.strokes.length, this.redoStrokes.length);
         },
         radius(stroke) {
             return stroke.tool === 'spray' ? stroke.size * 3 : stroke.tool === 'brush' ? stroke.size : stroke.tool === 'eraser' ? stroke.size * 1.5 : Math.max(1, stroke.size * 0.6);
@@ -210,14 +230,22 @@ export default {
         },
         /* ---------- actions appelées par l'éditeur ---------- */
         undo() {
-            this.strokes.pop();
+            const s = this.strokes.pop();
+            if (s) this.redoStrokes.push(s);
             this.redraw();
-            this.$emit('change', this.strokes.length);
+            this.$emit('change', this.strokes.length, this.redoStrokes.length);
+        },
+        redo() {
+            const s = this.redoStrokes.pop();
+            if (s) this.strokes.push(s);
+            this.redraw();
+            this.$emit('change', this.strokes.length, this.redoStrokes.length);
         },
         clear() {
             this.strokes = [];
+            this.redoStrokes = [];
             this.redraw();
-            this.$emit('change', 0);
+            this.$emit('change', 0, 0);
         },
         // Découpe la zone dessinée et la renvoie sous forme de PNG transparent
         result() {

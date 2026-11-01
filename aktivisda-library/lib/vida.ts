@@ -28,6 +28,19 @@ import { Mutex } from 'async-mutex';
 import migrate from './migration/migrater.mjs';
 import { Margins } from 'pdfmake/interfaces';
 
+type HistoryEntry =
+    | { kind: 'comp'; comp: AbstractVidaComponent; tx: number; t: number }
+    | { kind: 'create'; comp: AbstractVidaComponent; index: number; tx: number; t: number }
+    | { kind: 'remove'; comp: AbstractVidaComponent; index: number; tx: number; t: number }
+    | { kind: 'doc'; before: any; after: any; tx: number; t: number };
+
+type Box = { x: number; y: number; width: number; height: number };
+
+/** Un élément figé par un modèle (self.fixed) ne peut pas être sélectionné. */
+function _selectable(c: AbstractVidaComponent): boolean {
+    return !(c.options.rules && (c.options.rules as any).self && (c.options.rules as any).self.fixed === true);
+}
+
 export default class Vida {
     document: DocumentParams;
     components: Array<AbstractVidaComponent>;
@@ -36,6 +49,20 @@ export default class Vida {
     version: string | undefined;
 
     _selectedComponent: string | undefined;
+    /** Sélection multiple (2 éléments ou plus, dans l'ordre de sélection). Vide si un seul élément (ou aucun) est sélectionné. */
+    _multi: Uuid[] = [];
+    multiTransformer: Konva.Transformer | undefined;
+    _multiDrag: { primary: Uuid; start: Map<Uuid, { x: number; y: number }> } | undefined;
+    _mods = { shift: false, ctrl: false, button: 0, t: 0 };
+    _marquee: Konva.Rect | undefined;
+    _marqueeEndedAt = 0;
+    _viewSet = false;
+
+    // Historique global (une seule pile pour tout le visuel)
+    _gUndo: HistoryEntry[] = [];
+    _gRedo: HistoryEntry[] = [];
+    _txCounter = 0;
+    _viewListeners: Array<() => void> = [];
     gallery: ImageGallery | undefined;
 
     layer: Konva.Layer;
@@ -67,6 +94,8 @@ export default class Vida {
 
         this.stage.add(this.layer);
         this.layer.draw();
+        this._setupPointerModifiers();
+        this._setupViewControls();
 
         const id = generateId();
         this.background = new BackgroundVidaComponent(this, id);
@@ -109,8 +138,38 @@ export default class Vida {
 
     selectComponent(componentId: Uuid) {
         if (this._selectedComponent && componentId === this._selectedComponent) return;
+        if (this._multi.length > 0 && Date.now() - this._marqueeEndedAt < 300 && componentId === this.document.id) {
+            // le relâchement du cadre de sélection ne doit pas désélectionner
+            return;
+        }
+        {
+            const c0 = componentId ? this._findComponent(componentId) : undefined;
+            if (c0 && c0._fresh) this._finalizeFresh();
+        }
+        // Un clic de molette ou de bouton droit ne sélectionne rien
+        if (Date.now() - this._mods.t < 1500 && this._mods.button > 0 && componentId !== this.document.id) {
+            this._mods.t = 0;
+            return;
+        }
+        // Clic avec Maj : ajoute ou retire l'élément de la sélection. Clic sur un élément groupé : tout le groupe.
+        if (componentId && componentId !== this.document.id && this._findComponent(componentId)) {
+            const fresh = Date.now() - this._mods.t < 1500;
+            if (fresh && this._mods.shift) {
+                this._mods.t = 0;
+                this.toggleInSelection(componentId);
+                return;
+            }
+            const group = fresh && this._mods.ctrl ? [] : this.groupMembers(componentId);
+            if (group.length > 1) {
+                this.selectMany(group);
+                return;
+            }
+        } else if (componentId === this.document.id && this._mods.shift && Date.now() - this._mods.t < 1500) {
+            return;
+        }
+        this._clearMulti();
         if (this._selectedComponent && this._selectedComponent !== this.document.id) {
-            this._findComponent(this._selectedComponent)!.unselect();
+            this._findComponent(this._selectedComponent)?.unselect();
         }
 
         this._selectedComponent = componentId;
@@ -121,6 +180,533 @@ export default class Vida {
 
     isSelected(componentId: Uuid) {
         return this._selectedComponent && componentId === this._selectedComponent;
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Historique global : annuler / rétablir pour tout le visuel
+    // ---------------------------------------------------------------------------------------------
+
+    _finalizeFresh() {
+        for (const c of this.components) {
+            if (c._fresh) {
+                c._fresh = false;
+                this._record({ kind: 'create', comp: c, index: this.components.indexOf(c) });
+            }
+        }
+    }
+
+    _record(entry: any) {
+        const now = Date.now();
+        const prev = this._gUndo[this._gUndo.length - 1];
+        // plusieurs éléments modifiés d'un même geste (déplacement de groupe, alignement...) = une seule étape
+        if (prev && prev.kind === 'comp' && entry.kind === 'comp' && now - prev.t < 40 && prev.comp !== entry.comp) {
+            entry.tx = prev.tx;
+        } else {
+            entry.tx = ++this._txCounter;
+        }
+        entry.t = now;
+        this._gUndo.push(entry);
+        this._gRedo = [];
+        this.onHistoryChange();
+    }
+
+    /** Appelé par un élément qui sauvegarde son état avant modification. */
+    recordChange(comp: AbstractVidaComponent) {
+        if (comp._fresh || this.components.indexOf(comp) === -1) return; // (le fond du visuel a son propre suivi)
+        this._record({ kind: 'comp', comp });
+    }
+
+    /** Annule l'enregistrement de la dernière modification d'un élément (modification sans effet). */
+    dropChange(comp: AbstractVidaComponent) {
+        for (let i = this._gUndo.length - 1; i >= 0; i--) {
+            const e = this._gUndo[i];
+            if (e.kind === 'comp' && e.comp === comp) {
+                this._gUndo.splice(i, 1);
+                break;
+            }
+        }
+        this.onHistoryChange();
+    }
+
+    /** Enregistre une modification du visuel lui-même (taille, fond...). */
+    recordDocumentChange(before: any, after: any) {
+        this._finalizeFresh();
+        this._record({ kind: 'doc', before, after });
+    }
+
+    canUndoGlobal(): boolean {
+        return this._gUndo.length > 0 || this.components.some((c) => c._fresh);
+    }
+
+    canRedoGlobal(): boolean {
+        return this._gRedo.length > 0;
+    }
+
+    _detach(comp: AbstractVidaComponent) {
+        if (this._selectedComponent === comp.id()) {
+            comp.unselect();
+            this._selectedComponent = undefined;
+        }
+        if (this._multi.indexOf(comp.id()) !== -1) this._clearMulti();
+        if (comp.konvaTransformer) {
+            comp.konvaTransformer.destroy();
+            comp.konvaTransformer = undefined;
+        }
+        if (comp.konvaElement) comp.konvaElement.remove();
+        const i = this.components.indexOf(comp);
+        if (i !== -1) this.components.splice(i, 1);
+        this.draw();
+    }
+
+    _attach(comp: AbstractVidaComponent, index: number) {
+        if (this.components.indexOf(comp) === -1) this.components.splice(Math.min(index, this.components.length), 0, comp);
+        if (comp.konvaElement) this.layer.add(comp.konvaElement as Konva.Group);
+        this.rearrangeZIndices();
+        this.draw();
+    }
+
+    _applyEntry(e: HistoryEntry, undo: boolean) {
+        switch (e.kind) {
+            case 'comp': {
+                if (undo) e.comp.undo();
+                else e.comp.redo();
+                break;
+            }
+            case 'create': {
+                if (undo) {
+                    e.index = this.components.indexOf(e.comp);
+                    this._detach(e.comp);
+                    this.onStructureChanged(e.comp.id(), false);
+                } else {
+                    this._attach(e.comp, e.index);
+                    this.onStructureChanged(e.comp.id(), true);
+                }
+                break;
+            }
+            case 'remove': {
+                if (undo) {
+                    this._attach(e.comp, e.index);
+                    this.onStructureChanged(e.comp.id(), true);
+                } else {
+                    e.index = this.components.indexOf(e.comp);
+                    this._detach(e.comp);
+                    this.onStructureChanged(e.comp.id(), false);
+                }
+                break;
+            }
+            case 'doc': {
+                this.onDocumentHistory(undo ? e.before : e.after);
+                break;
+            }
+        }
+    }
+
+    undoGlobal(): boolean {
+        this._finalizeFresh();
+        const last = this._gUndo[this._gUndo.length - 1];
+        if (!last) return false;
+        while (this._gUndo.length && this._gUndo[this._gUndo.length - 1].tx === last.tx) {
+            const e = this._gUndo.pop()!;
+            this._applyEntry(e, true);
+            this._gRedo.push(e);
+        }
+        this.onHistoryChange();
+        return true;
+    }
+
+    redoGlobal(): boolean {
+        const last = this._gRedo[this._gRedo.length - 1];
+        if (!last) return false;
+        const batch: HistoryEntry[] = [];
+        while (this._gRedo.length && this._gRedo[this._gRedo.length - 1].tx === last.tx) batch.push(this._gRedo.pop()!);
+        // on rejoue dans l'ordre où les modifications ont été faites
+        for (const e of batch.reverse()) {
+            this._applyEntry(e, false);
+            this._gUndo.push(e);
+        }
+        this.onHistoryChange();
+        return true;
+    }
+
+    onHistoryChange() {
+        // à surcharger : l'historique a changé (boutons annuler / rétablir)
+    }
+
+    onStructureChanged(_componentId: Uuid, _added: boolean) {
+        // à surcharger : un élément a été ajouté ou retiré par annuler / rétablir
+    }
+
+    onDocumentHistory(_options: any) {
+        // à surcharger : annuler / rétablir une modification du visuel
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Sélection multiple, déplacement au clavier, alignement, distribution, groupes
+    // ---------------------------------------------------------------------------------------------
+
+    /** Identifiants des éléments sélectionnés (un seul, ou plusieurs), dans l'ordre de sélection. */
+    selectedIds(): Uuid[] {
+        if (this._multi.length > 0) return [...this._multi];
+        if (this._selectedComponent && this._selectedComponent !== this.document.id && this._findComponent(this._selectedComponent)) {
+            return [this._selectedComponent];
+        }
+        return [];
+    }
+
+    isMultiSelected(): boolean {
+        return this._multi.length > 1;
+    }
+
+    /** Éléments de même groupe que `componentId` (lui compris). Vide ou un seul : pas de groupe. */
+    groupMembers(componentId: Uuid): Uuid[] {
+        const c = this._findComponent(componentId);
+        const g = c ? c.options.groupId : undefined;
+        if (!g) return [];
+        return this.components.filter((o) => o.options.groupId === g).map((o) => o.id());
+    }
+
+    /** Ajoute ou retire un élément de la sélection (clic avec Maj). */
+    toggleInSelection(componentId: Uuid) {
+        const current = this.selectedIds();
+        const members = this.groupMembers(componentId);
+        const group = members.length > 1 ? members : [componentId];
+        const present = current.indexOf(componentId) !== -1;
+        const next = present ? current.filter((id) => group.indexOf(id) === -1) : [...current, ...group.filter((id) => current.indexOf(id) === -1)];
+        this.selectMany(next);
+    }
+
+    /**
+     * Sélectionne plusieurs éléments. Un seul élément : sélection ordinaire ; aucun : le visuel.
+     * Les éléments groupés entraînent tout leur groupe.
+     */
+    selectMany(ids: Uuid[]) {
+        const wanted: Uuid[] = [];
+        for (const id of ids) {
+            const c = this._findComponent(id);
+            if (!c || _selectable(c) === false || wanted.indexOf(id) !== -1) continue;
+            wanted.push(id);
+        }
+        const withGroups: Uuid[] = [];
+        for (const id of wanted) {
+            const members = this.groupMembers(id);
+            for (const m of members.length > 1 ? members : [id]) if (withGroups.indexOf(m) === -1) withGroups.push(m);
+        }
+        const finalIds = withGroups.filter((id) => {
+            const c = this._findComponent(id);
+            return c !== undefined && _selectable(c) !== false;
+        });
+        // ne pas rejouer la logique de clic (Maj, groupes) pour une sélection venant d'ici
+        this._mods.t = 0;
+        if (finalIds.length === 0) {
+            this.selectComponent(this.document.id);
+            return;
+        }
+        if (finalIds.length === 1) {
+            this.selectComponent(finalIds[0]);
+            return;
+        }
+        // on laisse l'ancienne sélection, simple ou multiple
+        if (this._selectedComponent && this._selectedComponent !== this.document.id) {
+            this._findComponent(this._selectedComponent)?.unselect();
+        }
+        this._clearMulti();
+        this._selectedComponent = undefined;
+        this._multi = finalIds;
+        this._buildMultiTransformer();
+        this.onMultiSelect(this.selectedIds());
+        this.draw();
+    }
+
+    selectAll() {
+        this.selectMany(this.components.map((c) => c.id()));
+    }
+
+    _clearMulti() {
+        if (this._multi.length === 0) return;
+        for (const id of this._multi) {
+            const c = this._findComponent(id);
+            if (c && c.konvaElement) {
+                c.konvaElement.off('.multi');
+                c.konvaElement.draggable(false);
+            }
+        }
+        this._multi = [];
+        this._multiDrag = undefined;
+        if (this.multiTransformer) {
+            this.multiTransformer.detach();
+            this.multiTransformer.destroy();
+            this.multiTransformer = undefined;
+        }
+        this.draw();
+    }
+
+    _buildMultiTransformer() {
+        const nodes: Konva.Node[] = [];
+        for (const id of this._multi) {
+            const c = this._findComponent(id);
+            if (!c || !c.konvaElement) continue;
+            nodes.push(c.konvaElement);
+            const node = c.konvaElement;
+            node.off('.multi');
+            node.draggable(c.canMove());
+            // les autres éléments suivent celui qu'on fait glisser
+            node.on('dragstart.multi', () => {
+                const start = new Map<Uuid, { x: number; y: number }>();
+                for (const o of this._multi) {
+                    const oc = this._findComponent(o);
+                    if (oc && oc.konvaElement) start.set(o, { x: oc.konvaElement.x(), y: oc.konvaElement.y() });
+                }
+                this._multiDrag = { primary: id, start };
+            });
+            node.on('dragmove.multi', () => {
+                const d = this._multiDrag;
+                if (!d || d.primary !== id) return;
+                const s0 = d.start.get(id)!;
+                const dx = node.x() - s0.x;
+                const dy = node.y() - s0.y;
+                for (const [o, s] of d.start) {
+                    if (o === id) continue;
+                    const oc = this._findComponent(o);
+                    if (oc && oc.konvaElement && oc.canMove()) oc.konvaElement.position({ x: s.x + dx, y: s.y + dy });
+                }
+            });
+            node.on('dragend.multi', () => {
+                const d = this._multiDrag;
+                this._multiDrag = undefined;
+                if (!d || d.primary !== id) return;
+                // l'élément glissé a déjà été enregistré par son propre gestionnaire : on enregistre les autres
+                for (const o of d.start.keys()) {
+                    if (o === id) continue;
+                    const oc = this._findComponent(o);
+                    if (oc) oc.adjustPosition();
+                }
+            });
+        }
+        this.multiTransformer = new Konva.Transformer({
+            nodes,
+            rotateEnabled: true,
+            resizeEnabled: true,
+            enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+            keepRatio: true,
+            flipEnabled: false,
+            borderStroke: '#c30c07',
+            anchorStroke: '#c30c07',
+            boundBoxFunc: function (_oldBox, newBox) {
+                newBox.width = Math.max(5, newBox.width);
+                return newBox;
+            },
+        });
+        this.layer.add(this.multiTransformer);
+    }
+
+    /** Décale les éléments sélectionnés de dx, dy pixels du visuel (flèches du clavier). */
+    moveSelection(dx: number, dy: number, coalesce = true) {
+        for (const id of this.selectedIds()) this._findComponent(id)?.moveByPx(dx, dy, coalesce);
+        if (this.multiTransformer) this.multiTransformer.forceUpdate();
+        this.draw();
+    }
+
+    /** Aligne les éléments sélectionnés. relativeTo : page, selection, first, last. */
+    alignSelection(axis: 'x' | 'y', mode: 'start' | 'center' | 'end', relativeTo: 'page' | 'selection' | 'first' | 'last') {
+        const items = this._selectionBoxes();
+        if (items.length === 0) return;
+        const span = (b: Box) => (axis === 'x' ? { s: b.x, l: b.width } : { s: b.y, l: b.height });
+        let ref: { s: number; e: number };
+        if (relativeTo === 'page') {
+            const total = axis === 'x' ? this.document.width! : this.document.height!;
+            ref = { s: 0, e: total };
+        } else if (relativeTo === 'first' || relativeTo === 'last') {
+            const it = relativeTo === 'first' ? items[0] : items[items.length - 1];
+            const sp = span(it.box);
+            ref = { s: sp.s, e: sp.s + sp.l };
+        } else {
+            ref = {
+                s: Math.min(...items.map((i) => span(i.box).s)),
+                e: Math.max(...items.map((i) => span(i.box).s + span(i.box).l)),
+            };
+        }
+        for (const it of items) {
+            const sp = span(it.box);
+            let target: number;
+            if (mode === 'start') target = ref.s;
+            else if (mode === 'end') target = ref.e - sp.l;
+            else target = (ref.s + ref.e) / 2 - sp.l / 2;
+            const delta = target - sp.s;
+            if (Math.abs(delta) < 0.01) continue;
+            it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+        }
+        this._afterArrange();
+    }
+
+    /** Répartit les éléments sélectionnés (3 au moins). gap : écarts égaux entre les éléments. */
+    distributeSelection(axis: 'x' | 'y', mode: 'start' | 'center' | 'end' | 'gap') {
+        const items = this._selectionBoxes();
+        if (items.length < 3) return;
+        const pos = (b: Box) => (axis === 'x' ? b.x : b.y);
+        const len = (b: Box) => (axis === 'x' ? b.width : b.height);
+        const key = (b: Box) => (mode === 'center' ? pos(b) + len(b) / 2 : mode === 'end' ? pos(b) + len(b) : pos(b));
+        const sorted = [...items].sort((a, b) => key(a.box) - key(b.box));
+        const n = sorted.length;
+        if (mode === 'gap') {
+            const first = pos(sorted[0].box);
+            const last = Math.max(...sorted.map((i) => pos(i.box) + len(i.box)));
+            const total = sorted.reduce((a, i) => a + len(i.box), 0);
+            const gap = (last - first - total) / (n - 1);
+            let cursor = first;
+            for (const it of sorted) {
+                const delta = cursor - pos(it.box);
+                if (Math.abs(delta) >= 0.01) it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+                cursor += len(it.box) + gap;
+            }
+        } else {
+            const k0 = key(sorted[0].box);
+            const k1 = key(sorted[n - 1].box);
+            sorted.forEach((it, i) => {
+                const delta = k0 + ((k1 - k0) * i) / (n - 1) - key(it.box);
+                if (Math.abs(delta) >= 0.01) it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+            });
+        }
+        this._afterArrange();
+    }
+
+    _selectionBoxes(): Array<{ comp: AbstractVidaComponent; box: Box }> {
+        const result: Array<{ comp: AbstractVidaComponent; box: Box }> = [];
+        for (const id of this.selectedIds()) {
+            const comp = this._findComponent(id);
+            const box = comp ? comp.boundingBox() : undefined;
+            if (comp && box) result.push({ comp, box });
+        }
+        return result;
+    }
+
+    _afterArrange() {
+        if (this.multiTransformer) this.multiTransformer.forceUpdate();
+        this.draw();
+    }
+
+    /** Groupe les éléments sélectionnés (2 au moins) ; renvoie l'identifiant du groupe. */
+    groupSelection(): string | undefined {
+        const ids = this.selectedIds();
+        if (ids.length < 2) return undefined;
+        const g = 'g' + generateId();
+        for (const id of ids) {
+            const c = this._findComponent(id);
+            if (c) {
+                c.options.groupId = g;
+                this.onComponentUpdated(id);
+            }
+        }
+        this.onMultiSelect(this.selectedIds());
+        return g;
+    }
+
+    /** Dégroupe les éléments sélectionnés (ils restent sélectionnés ensemble). */
+    ungroupSelection() {
+        for (const id of this.selectedIds()) {
+            const c = this._findComponent(id);
+            if (c && c.options.groupId) {
+                delete c.options.groupId;
+                this.onComponentUpdated(id);
+            }
+        }
+        this.onMultiSelect(this.selectedIds());
+    }
+
+    /** Résumé de la sélection pour le panneau : nombre d'éléments, d'éléments groupés, un seul groupe ? */
+    selectionInfo() {
+        const ids = this.selectedIds();
+        const groups = new Set<string>();
+        let grouped = 0;
+        for (const id of ids) {
+            const g = this._findComponent(id)?.options.groupId;
+            if (g) {
+                grouped++;
+                groups.add(g);
+            }
+        }
+        return { count: ids.length, grouped, oneGroup: groups.size === 1 && grouped === ids.length };
+    }
+
+    // --- Maj/Ctrl au clic, cadre de sélection (Maj + glisser sur une zone vide)
+
+    _setupPointerModifiers() {
+        const remember = (e: any) => {
+            const ev = e && e.evt ? e.evt : undefined;
+            if (!ev) return;
+            this._mods = { shift: !!ev.shiftKey, ctrl: !!(ev.ctrlKey || ev.metaKey), button: typeof ev.button === 'number' ? ev.button : 0, t: Date.now() };
+        };
+        this.stage.on('pointerdown pointerup', remember);
+        let origin: { x: number; y: number } | undefined;
+        let layerStart: { x: number; y: number } | undefined;
+        this.stage.on('pointerdown', (e: any) => {
+            origin = undefined;
+            if (!e.evt || !e.evt.shiftKey || (e.evt.button !== undefined && e.evt.button !== 0)) return;
+            const p = this.layer.getRelativePointerPosition();
+            if (p) origin = { x: p.x, y: p.y };
+            layerStart = { x: this.layer.x(), y: this.layer.y() };
+            // zone vide, hors du visuel : aucun glissement du calque ne démarre, on lance le cadre tout de suite
+            if (e.target === this.stage && origin) {
+                this._startMarquee(origin);
+                origin = undefined;
+            }
+        });
+        this.layer.on('dragstart', (e: any) => {
+            // seul le glissement du calque lui-même (pas d'un élément) devient un cadre de sélection
+            if (e.target !== this.layer || !origin) return;
+            this.layer.stopDrag();
+            if (layerStart) this.layer.position(layerStart);
+            this._startMarquee(origin);
+            origin = undefined;
+        });
+    }
+
+    _startMarquee(origin: { x: number; y: number }) {
+        const zoom = this.stage.scaleX() || 1;
+        const rect = new Konva.Rect({
+            x: origin.x,
+            y: origin.y,
+            width: 0,
+            height: 0,
+            fill: 'rgba(195,12,7,0.08)',
+            stroke: '#c30c07',
+            strokeWidth: 1.5 / zoom,
+            dash: [6 / zoom, 4 / zoom],
+            listening: false,
+        });
+        this._marquee = rect;
+        this.layer.add(rect);
+        const keep = this.selectedIds();
+        const toLayer = (ev: PointerEvent | MouseEvent) => {
+            this.stage.setPointersPositions(ev);
+            return this.layer.getRelativePointerPosition();
+        };
+        const move = (ev: PointerEvent | MouseEvent) => {
+            const p = toLayer(ev);
+            if (!p) return;
+            rect.setAttrs({ x: Math.min(origin.x, p.x), y: Math.min(origin.y, p.y), width: Math.abs(p.x - origin.x), height: Math.abs(p.y - origin.y) });
+            this.draw();
+        };
+        const up = (ev: PointerEvent | MouseEvent) => {
+            window.removeEventListener('pointermove', move);
+            window.removeEventListener('pointerup', up);
+            move(ev);
+            const r = { x: rect.x(), y: rect.y(), w: rect.width(), h: rect.height() };
+            rect.destroy();
+            this._marquee = undefined;
+            this._marqueeEndedAt = Date.now();
+            const inside: Uuid[] = [];
+            if (r.w > 3 && r.h > 3) {
+                for (const c of this.components) {
+                    const b = c.boundingBox();
+                    if (!b || _selectable(c) === false) continue;
+                    if (b.x >= r.x - 0.5 && b.y >= r.y - 0.5 && b.x + b.width <= r.x + r.w + 0.5 && b.y + b.height <= r.y + r.h + 0.5) inside.push(c.id());
+                }
+            }
+            this.selectMany([...keep, ...inside.filter((i) => keep.indexOf(i) === -1)]);
+            this.draw();
+        };
+        window.addEventListener('pointermove', move);
+        window.addEventListener('pointerup', up);
     }
 
     documentParams(): DocumentParams {
@@ -325,6 +911,10 @@ export default class Vida {
      */
     loadJson(template: Template): Promise<void> {
         // Reset
+        this._clearMulti();
+        this._selectedComponent = undefined;
+        this._gUndo = [];
+        this._gRedo = [];
         this.components = [];
 
         const updatedTemplate: Template = migrate(template);
@@ -371,20 +961,102 @@ export default class Vida {
     }
 
     zoom(factor: number | null = null): number {
-        // compute factor to fit screen
+        // sans argument : le visuel entier est ajusté à la zone de travail et centré
         if (factor === null) {
-            // set to 100% if content is smaller than screen
             factor = Math.min(this.layer.width() / this.document.width!, this.layer.height() / this.document.height!);
             factor *= 0.95;
+            this.stage.scale({ x: factor, y: factor });
+            this.layer.x((this.layer.width() / factor - this.document.width!) / 2);
+            this.layer.y((this.layer.height() / factor - this.document.height!) / 2);
+        } else {
+            // avec un facteur : on garde le point de vue (le centre de la zone visible reste en place)
+            this.zoomAt(factor);
+            return this.stage.scaleX();
         }
-        this.stage.scale({ x: factor, y: factor });
-
-        // Center the layer
-        this.layer.x((this.layer.width() / factor - this.document.width!) / 2);
-        this.layer.y((this.layer.height() / factor - this.document.height!) / 2);
-
+        this._viewSet = true;
         this.draw();
+        this._viewChanged();
         return factor;
+    }
+
+    /** Zoome autour d'un point de la zone de travail (en pixels de l'écran ; le centre par défaut). */
+    zoomAt(factor: number, px?: number, py?: number) {
+        const f = Math.min(8, Math.max(0.02, factor));
+        const s0 = this.stage.scaleX() || 1;
+        const x = px === undefined ? this.stage.width() / 2 : px;
+        const y = py === undefined ? this.stage.height() / 2 : py;
+        const dx = x / s0 - this.layer.x();
+        const dy = y / s0 - this.layer.y();
+        this.stage.scale({ x: f, y: f });
+        this.layer.x(x / f - dx);
+        this.layer.y(y / f - dy);
+        this.draw();
+        this._viewChanged();
+    }
+
+    /** Déplace la page dans la zone de travail (dx, dy en pixels de l'écran). */
+    panBy(dx: number, dy: number) {
+        const s = this.stage.scaleX() || 1;
+        this.layer.x(this.layer.x() + dx / s);
+        this.layer.y(this.layer.y() + dy / s);
+        this.draw();
+        this._viewChanged();
+    }
+
+    /** Molette : déplace la page (Maj : horizontalement) ; Ctrl + molette : zoom autour du pointeur. */
+    handleWheel(e: WheelEvent) {
+        const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? this.stage.height() : 1;
+        const dx = e.deltaX * unit;
+        const dy = e.deltaY * unit;
+        if (e.ctrlKey || e.metaKey) {
+            const rect = this.stage.container().getBoundingClientRect();
+            this.zoomAt(this.stage.scaleX() * Math.pow(1.0015, -dy), e.clientX - rect.left, e.clientY - rect.top);
+        } else if (e.shiftKey && dx === 0) {
+            this.panBy(-dy, 0);
+        } else {
+            this.panBy(-dx, -dy);
+        }
+    }
+
+    _domCleanup: Array<() => void> = [];
+
+    _setupViewControls() {
+        const el = this.stage.container();
+        const onWheel = (e: WheelEvent) => {
+            e.preventDefault();
+            this.handleWheel(e);
+        };
+        // le bouton du milieu sert à déplacer la page : pas de défilement automatique du navigateur
+        const onDown = (e: MouseEvent) => {
+            if (e.button === 1) e.preventDefault();
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        el.addEventListener('mousedown', onDown);
+        // quand un visuel est remplacé par un autre (changement de modèle), l'ancien doit lâcher la zone de travail
+        this._domCleanup.push(() => {
+            el.removeEventListener('wheel', onWheel);
+            el.removeEventListener('mousedown', onDown);
+        });
+        this.layer.on('dragmove', (e: any) => {
+            if (e.target === this.layer) this._viewChanged();
+        });
+    }
+
+    addViewListener(fn: () => void) {
+        this._viewListeners.push(fn);
+    }
+
+    removeViewListener(fn: () => void) {
+        this._viewListeners = this._viewListeners.filter((f) => f !== fn);
+    }
+
+    _viewChanged() {
+        this.onZoomChange(this.stage.scaleX());
+        for (const f of this._viewListeners) f();
+    }
+
+    onZoomChange(_factor: number) {
+        // à surcharger : le zoom a changé
     }
 
     handleResize() {
@@ -395,8 +1067,23 @@ export default class Vida {
 
         const height = canvasParent.clientHeight;
         const width = canvasParent.clientWidth;
+        const oldW = this.stage.width();
+        const oldH = this.stage.height();
+        const s = this.stage.scaleX() || 1;
+        if (oldW <= 1 || oldH <= 1 || !this._viewSet) {
+            this.stage.setAttrs({ width, height });
+            this.zoom();
+            this._viewSet = true;
+            return;
+        }
+        // On garde le zoom et le point de vue : le centre de la zone visible reste en place
+        const cx = oldW / 2 / s - this.layer.x();
+        const cy = oldH / 2 / s - this.layer.y();
         this.stage.setAttrs({ width, height });
-        this.zoom();
+        this.layer.x(width / 2 / s - cx);
+        this.layer.y(height / 2 / s - cy);
+        this.draw();
+        this._viewChanged();
     }
 
     updateDocument(documentParams: DocumentOptions): Promise<void> {
@@ -488,10 +1175,18 @@ export default class Vida {
     removeComponent(componentId: Uuid) {
         const component = this._findComponent(componentId);
         if (!component) return;
-        component.remove();
+        this._finalizeFresh();
         const indexOf = this.components.indexOf(component);
-        this.components.splice(indexOf, 1);
+        this._record({ kind: 'remove', comp: component, index: indexOf });
+        this._detach(component);
         if (componentId === this._selectedComponent) this._selectedComponent = undefined;
+        if (this._multi.indexOf(componentId) !== -1) {
+            const rest = this._multi.filter((i) => i !== componentId);
+            this._clearMulti();
+            if (rest.length > 1) this.selectMany(rest);
+            else if (rest.length === 1) this.selectComponent(rest[0]);
+            else this.selectComponent(this.document.id);
+        }
     }
 
     createComponent(options: ComponentOptions) {
@@ -505,10 +1200,13 @@ export default class Vida {
                       Math,
                       this.components.map((comp) => comp.toJson().zIndex!),
                   ) + 1;
-        return this.setupComponent(options);
+        const created = this.setupComponent(options);
+        const comp = this._findComponent(options.id!);
+        if (comp) comp._fresh = true;
+        return created;
     }
 
-    createRandomComponent(type: 'text' | 'internalsvg' | 'qrcode' | 'geometry' | 'emoji' | 'internalphoto' | 'textchoice'): Promise<string> {
+    createRandomComponent(type: 'text' | 'internalsvg' | 'qrcode' | 'geometry' | 'emoji' | 'internalphoto' | 'textchoice', initial?: Partial<ComponentOptions>): Promise<string> {
         return new Promise((resolve) => {
             let component = undefined;
             let randomId = generateId();
@@ -533,7 +1231,8 @@ export default class Vida {
                     throw Error('Not implemented');
             }
 
-            component.randomInit(type, this.documentSize).then(() => {
+            component._fresh = true;
+            component.randomInit(type, this.documentSize, initial).then(() => {
                 resolve(randomId);
             });
         });
@@ -594,7 +1293,12 @@ export default class Vida {
         this.background.sendBackward();
         let z = 1;
         for (const component of this.components) {
-            component.update({ zIndex: z }, {});
+            component._skipBackup = true;
+            try {
+                component.update({ zIndex: z }, {});
+            } finally {
+                component._skipBackup = false;
+            }
             ++z;
         }
         this.background.bringClipperForward();
@@ -606,6 +1310,11 @@ export default class Vida {
     }
 
     destroy() {
+        for (const f of this._domCleanup) f();
+        this._domCleanup = [];
+        this._viewListeners = [];
+        this.onZoomChange = () => {};
+        this._clearMulti();
         this.background.destroy();
         for (let component of this.components) component.destroy();
         this.components = [];
@@ -613,6 +1322,10 @@ export default class Vida {
 
     onComponentUpdated(_componentId: Uuid) {
         console.assert(false, 'onComponentUpdated should be overriden');
+    }
+
+    onMultiSelect(_componentIds: Uuid[]) {
+        // à surcharger : sélection de plusieurs éléments
     }
 
     onSelect(_componentId: Uuid) {

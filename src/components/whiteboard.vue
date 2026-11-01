@@ -7,7 +7,14 @@ const vStore = useVidaStore();
 <template>
     <div style="height: 100%">
         <div class="whiteboard-tools">
-            <span id="zoom-box">{{ (vStore.zoom * 100) | toFixed(1) }}%</span>
+            <b-button @click="$emit('undo')" size="is-small" icon-left="undo" outlined :disabled="!canUndo" title="Annuler (Ctrl+Z)" data-act="undo"></b-button>
+            <b-button @click="$emit('redo')" size="is-small" icon-left="redo" outlined :disabled="!canRedo" title="Rétablir (Ctrl+Y)" data-act="redo"></b-button>
+            <span style="display:inline-block;width:10px"></span>
+            <span id="zoom-box">
+                <input type="text" inputmode="decimal" data-act="zoom-input" :value="zoomText" title="Saisir un zoom en % puis Entrée"
+                    style="width:62px;text-align:right;font:inherit;font-weight:bold;border:1px solid #ccc;border-radius:4px;padding:1px 4px;background:#fff"
+                    @focus="editing = true" @blur="editing = false; apply($event.target)" @keydown.enter.prevent="$event.target.blur()" @keydown.esc.prevent="$event.target.value = zoomText; $event.target.blur()" />%
+            </span>
             <b-button @click="vStore.zoomOut()" size="is-small" icon-left="minus" outlined></b-button>
             <b-button @click="vStore.zoomIn()" size="is-small" icon-left="plus" outlined></b-button>
             <b-button @click="vStore.zoomFit()" type="is-primary" size="is-small" icon-left="arrow-expand-all" outlined></b-button>
@@ -23,7 +30,26 @@ export default {
     name: 'whiteboard',
     props: {
         id: String,
+        canUndo: { type: Boolean, default: false },
+        canRedo: { type: Boolean, default: false },
         zoom: { type: Number, default: 0 },
+    },
+    data() {
+        return { editing: false };
+    },
+    computed: {
+        zoomText() {
+            return (this.vStore.zoom * 100).toFixed(1);
+        },
+    },
+    created() {
+        this.vStore = useVidaStore();
+    },
+    methods: {
+        apply(input) {
+            this.vStore.setZoomPercent(input.value);
+            input.value = this.zoomText;
+        },
     },
     filters: {
         toFixed: (val, precision) => val.toFixed(precision),

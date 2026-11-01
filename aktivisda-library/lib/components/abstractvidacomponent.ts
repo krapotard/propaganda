@@ -27,6 +27,13 @@ export default class AbstractVidaComponent {
 
     documentSize: Dimensions;
 
+    /** Déplacements au clavier : on regroupe une rafale de flèches en une seule étape d'annulation. */
+    _skipBackup = false;
+    /** Élément tout juste créé : ses premières modifications font partie de sa création (une seule étape d'annulation). */
+    _fresh = false;
+    _nudgeUntil = 0;
+    _nudgeLen = -1;
+
     constructor(vida: Vida, componentId: Uuid) {
         this.vida = vida;
         this.vida.draw();
@@ -78,6 +85,10 @@ export default class AbstractVidaComponent {
         // TODO: if we changed image.id, backup also color
         // and probably other things
         overrideValues(backupChanges, this.options);
+        // Options jamais définies (opacité, flou) : sans cette ligne, la première modification ne pouvait pas être annulée
+        const bc: any = backupChanges;
+        if (options.opacity !== undefined && this.options.opacity === undefined) bc.opacity = 1;
+        if (options.blur !== undefined && this.options.blur === undefined) bc.blur = 0;
         return backupChanges;
     }
 
@@ -110,12 +121,16 @@ export default class AbstractVidaComponent {
         const firstToUndo = this._undoHistory[this._undoHistory.length - 1];
         if (Object.keys(firstToUndo).length === 0) {
             this._undoHistory.pop();
+            this.vida.dropChange(this);
             return true;
         }
         return false;
     }
 
     _backupCurrentState(options: ComponentOptions) {
+        if (this._skipBackup) return;
+        this._nudgeUntil = 0;
+        if (this._undoHistory.length >= 1) this.vida.recordChange(this);
         this._undoHistory.push(this._oppositOption(options));
         this._redoHistory = [];
     }
@@ -174,8 +189,21 @@ export default class AbstractVidaComponent {
         return this._redoHistory.length > 0;
     }
 
+    /** Une mise à jour qui ne change rien (le panneau renvoie parfois les valeurs par défaut) ne crée pas d'étape d'historique. */
+    _isNoop(options: ComponentOptions): boolean {
+        const defaults: { [k: string]: any } = { skewX: 0, skewY: 0, blur: 0, flipX: false, flipY: false };
+        for (const k of Object.keys(options)) {
+            const v = (options as any)[k];
+            if (v !== null && typeof v === 'object') return false;
+            let cur = (this.options as any)[k];
+            if (cur === undefined && k in defaults) cur = defaults[k];
+            if (cur !== v) return false;
+        }
+        return true;
+    }
+
     update(options: ComponentOptions, document: Partial<DocumentParams>): Promise<boolean | void> {
-        if (Object.keys(options).length > 0)
+        if (Object.keys(options).length > 0 && !this._isNoop(options))
             this._backupCurrentState(options);
         return this._update(options, document);
     }
@@ -197,6 +225,46 @@ export default class AbstractVidaComponent {
         if (!this.konvaElement) return;
         applyNodeEffects(this.konvaElement, this.effectOpacity(), this.effectBlur());
         this.vida.draw();
+    }
+
+    /** Peut-on déplacer cet élément ? (règles de modèle : position ou élément figé) */
+    canMove(): boolean {
+        if (_get(this.options.rules, 'self.fixed') === true) return false;
+        if (_get(this.options.rules, 'position.fixed') === true) return false;
+        return _get(this.options.rules, 'position.properties.x.fixed') !== true || _get(this.options.rules, 'position.properties.y.fixed') !== true;
+    }
+
+    /** Boîte de l'élément dans les coordonnées du visuel (px), ou undefined s'il n'est pas affiché. */
+    boundingBox(): { x: number; y: number; width: number; height: number } | undefined {
+        if (!this.konvaElement) return undefined;
+        const r = this.konvaElement.getClientRect({ relativeTo: this.vida.layer, skipShadow: true, skipStroke: true });
+        if (!isFinite(r.x) || !isFinite(r.width) || r.width <= 0 || r.height <= 0) return undefined;
+        return { x: r.x, y: r.y, width: r.width, height: r.height };
+    }
+
+    /**
+     * Déplace l'élément de dx, dy pixels du visuel (flèches du clavier, alignement...).
+     * Avec `coalesce`, une rafale de déplacements rapprochés ne compte que pour une étape d'annulation.
+     */
+    moveByPx(dx: number, dy: number, coalesce = false) {
+        if (!this.konvaElement || !this.canMove()) return;
+        if (dx === 0 && dy === 0) return;
+        const now = Date.now();
+        this._skipBackup = coalesce && now < this._nudgeUntil && this._undoHistory.length === this._nudgeLen;
+        this.konvaElement.x(this.konvaElement.x() + dx);
+        this.konvaElement.y(this.konvaElement.y() + dy);
+        try {
+            this.adjustPosition();
+        } finally {
+            this._skipBackup = false;
+        }
+        this._nudgeUntil = coalesce ? now + 900 : 0;
+        this._nudgeLen = this._undoHistory.length;
+        this.vida.draw();
+    }
+
+    adjustPosition(): any {
+        // surchargée par chaque type d'élément
     }
 
     /**
@@ -354,8 +422,10 @@ export default class AbstractVidaComponent {
      * RandomInit computes random options for the component
      * and initializes the item
      */
-    randomInit(type: string, document: Partial<DocumentParams>): Promise<boolean | void> {
+    randomInit(type: string, document: Partial<DocumentParams>, initial?: Partial<ComponentOptions>): Promise<boolean | void> {
         const options = this.randomOptions(type);
+        // Options choisies d'emblée : évite de charger d'abord un élément tiré au hasard (il apparaissait une seconde)
+        if (initial) Object.assign(options, initial);
         // Background has zIndex == 0
         options.zIndex = this.vida.components.length + 1;
         return this.update(options, document);

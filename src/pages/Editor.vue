@@ -11,6 +11,7 @@ store.fetchConfig();
     <div>
         <vida-navbar compact>
             <template v-slot:import>
+                <b-button class="new-document-button" data-act="new-document" icon-left="file-outline" :disabled="isLoading || isExporting" title="Repartir d'un document vierge" @click="newBlankDocument">Nouveau</b-button>
                 <vida-import-menu :disabled="isLoading || isExporting" @input="importFileTemplate" />
             </template>
             <template v-slot:export>
@@ -20,12 +21,14 @@ store.fetchConfig();
         <section class="editor" :style="{ '--left-w': leftWidth + 'px', '--right-w': rightWidth + 'px' }">
             <vida-editor-library ref="library" @panel="(v) => (panelOpen = v)" :disabled="isLoading || isExporting" :currentFormat="cacheDocument.format"
                 @template="chooseTemplate" @background="chooseBackground" @illustration="addIllustration"
-                @text="addText" @photo="importPhoto" @vecteezy="useVecteezy" @qrcode="createComponent('qrcode')" @shape="addShape" @format="chooseFormat"
+                @text="addText" @text-frame="startTextFrame" @photo="importPhoto" @vecteezy="useVecteezy" @qrcode="createComponent('qrcode')" @shape="addShape" @format="chooseFormat"
                 @draw-start="startDrawing" @draw-settings="(v) => (drawSettings = { ...v })" @draw-undo="$refs.drawing && $refs.drawing.undo()"
                 @draw-clear="$refs.drawing && $refs.drawing.clear()" @draw-finish="finishDrawing" @draw-cancel="stopDrawing"
                 @resize="handleResize" />
+            <textframe-overlay v-if="textFrameActive" :vida="vida" :zoom="vidaStore.zoom" @done="createTextFrame"
+                @cancel="textFrameActive = false" @too-small="$buefy.toast.open({ message: $t('TEXTS.DRAW_TOO_SMALL'), type: 'is-warning' })" />
             <drawing-overlay v-if="drawingActive" ref="drawing" :vida="vida" :settings="drawSettings" :zoom="vidaStore.zoom"
-                @change="(n) => $refs.library && ($refs.library.strokes = n)" />
+                @change="(n, r) => { drawStrokes = n; drawRedo = r || 0; $refs.library && ($refs.library.strokes = n); }" />
             <b-loading :is-full-page="true" :active="isLoading || isExporting" class="primary-loading"></b-loading>
             <button type="button" class="drawer-handle is-left" :style="{ left: leftWidth + 'px' }" :title="panelOpen ? 'Replier le panneau' : 'Ouvrir le panneau'" :aria-label="panelOpen ? 'Replier le panneau' : 'Ouvrir le panneau'" @click="$refs.library.toggleDrawer(); $nextTick(() => handleResize())"><span class="dots"></span></button>
             <button type="button" class="drawer-handle is-right" :style="{ right: rightWidth + 'px' }" :title="rightOpen ? 'Replier le panneau de droite' : 'Ouvrir le panneau de droite'" :aria-label="rightOpen ? 'Replier le panneau de droite' : 'Ouvrir le panneau de droite'" @click="toggleDrawer('right')"><span class="dots"></span></button>
@@ -95,7 +98,10 @@ store.fetchConfig();
                     </b-message>
 
 
-                    <vida-document-input-component v-if="selectedType === 'background'" :document="cacheDocument"
+                    <vida-multi-input-component v-if="selectedType === 'multi'" :info="multiInfo"
+                        @group="groupSelection" @ungroup="ungroupSelection" @remove="removeSelection"
+                        @align="alignSelection" @distribute="distributeSelection" />
+                    <vida-document-input-component v-else-if="selectedType === 'background'" :document="cacheDocument"
                         @update="updateDocument" :key="this.rerenderSelectedComponent" />
                     <vida-text-input-component v-else-if="selectedType === 'text'" :componentId="selectedComponent"
                         :width="cacheDocument.width" :height="cacheDocument.height" :options="selectedComponentOptions"
@@ -113,7 +119,7 @@ store.fetchConfig();
                         :nbComponents="nbComponents" :editingLang="editingLang" :key="this.rerenderSelectedComponent" />
                 </template>
             </aside>
-            <vida-whiteboard class="editor-whiteboard" id="whiteboard" />
+            <vida-whiteboard class="editor-whiteboard" id="whiteboard" :canUndo="canUndoAny" :canRedo="canRedoAny" @undo="undoAny" @redo="redoAny" />
         </section>
     </div>
 </template>
@@ -127,6 +133,7 @@ import VidaWhiteboard from '@/components/whiteboard.vue';
 import VidaNavbar from '@navbar';
 import VidaEditorLibrary from '@/components/editor-library.vue';
 import DrawingOverlay from '@/components/drawing-overlay.vue';
+import TextframeOverlay from '@/components/textframe-overlay.vue';
 
 import { uriToJSON, showSnackbarOnRedirection } from '@/plugins/utils.js';
 import { dernierTravail, enregistrerTravail } from '@/plugins/brouillon.js';
@@ -136,6 +143,7 @@ import { pdfMakeFonts, fontsLoaded } from '@/plugins/font-loader.js';
 import VidaDocumentInputComponent from '@/components/visual-input-components/document-input-component.vue';
 import VidaTextInputComponent from '@/components/visual-input-components/text-input-component.vue';
 import VidaImageInputComponent from '@/components/visual-input-components/image-input-component.vue';
+import VidaMultiInputComponent from '@/components/visual-input-components/multi-input-component.vue';
 import VidaExportMenu from '@/components/exportmenu.vue';
 import VidaImportMenu from '@/components/importmenu.vue';
 
@@ -178,9 +186,11 @@ export default {
         VidaNavbar,
         VidaEditorLibrary,
         DrawingOverlay,
+        TextframeOverlay,
         VidaDocumentInputComponent,
         VidaTextInputComponent,
         VidaImageInputComponent,
+        VidaMultiInputComponent,
         VidaExportMenu,
         VidaImportMenu,
     },
@@ -199,6 +209,12 @@ export default {
             rerenderTextsList: 0,
             selectedComponent: undefined, // Id
             selectedComponentOptions: {},
+            canUndoG: false,
+            canRedoG: false,
+            drawStrokes: 0,
+            drawRedo: 0,
+            multiSelection: [], // ids, quand plusieurs éléments sont sélectionnés
+            multiInfo: { count: 0, grouped: 0, oneGroup: false },
             store: useStore(),
             templateId: this.$route.params.templateId,
             editingLang: null,
@@ -207,6 +223,7 @@ export default {
             rightOpen: drawerState('right'),
             panelOpen: true,
             drawingActive: false,
+            textFrameActive: false,
             drawSettings: { tool: 'pencil', color: '#1d1c1d', size: 10 },
         };
     },
@@ -247,10 +264,17 @@ export default {
             return this.editingLang != undefined;
         },
         selectedType: function () {
+            if (this.multiSelection.length > 1) return 'multi';
             if (this.selectedComponent === undefined) return 'background';
             if (Object.keys(this.cacheTexts).indexOf(this.selectedComponent) != -1) return 'text';
             if (Object.keys(this.cacheImage).indexOf(this.selectedComponent) != -1) return 'image';
             return 'background';
+        },
+        canUndoAny: function () {
+            return this.canUndoG || (this.drawingActive && this.drawStrokes > 0);
+        },
+        canRedoAny: function () {
+            return this.canRedoG || (this.drawingActive && this.drawRedo > 0);
         },
         nbComponents: function () {
             this.rerenderImagesList; // for cache update
@@ -435,7 +459,23 @@ export default {
                         );
 
 
+                        this.vida.onHistoryChange = () => {
+                            this.canUndoG = this.vida.canUndoGlobal();
+                            this.canRedoG = this.vida.canRedoGlobal();
+                        };
+                        this.vida.onStructureChanged = (id, added) => this.structureChanged(id, added);
+                        this.vida.onDocumentHistory = (opts) => this.updateDocument(opts, false);
+                        this.vida.onHistoryChange();
+                        this.vida.onMultiSelect = (ids) => {
+                            this.multiSelection = ids;
+                            this.multiInfo = this.vida.selectionInfo();
+                            this.selectedComponent = undefined;
+                            this.selectedComponentOptions = {};
+                            ++this.rerenderSelectedComponent;
+                        };
+
                         this.vida.onSelect = (id) => {
+                            this.multiSelection = [];
                             this.selectedComponent = id;
                             this.selectedComponentOptions = this.vida.componentParams(id);
                             ++this.rerenderSelectedComponent;
@@ -525,7 +565,32 @@ export default {
             }
             return route.params.templateId;
         },
+        // Repart d'un document vierge (fond blanc, A4 portrait), après confirmation
+        newBlankDocument() {
+            this.$buefy.dialog.confirm({
+                title: 'Nouveau document',
+                message: "Repartir d'un document vierge ? Le travail en cours sera abandonné (pensez à le sauvegarder avant).",
+                confirmText: 'Nouveau document',
+                cancelText: 'Annuler',
+                type: 'is-danger',
+                onConfirm: () => {
+                    if (this.drawingActive) this.stopDrawing();
+                    this.reset();
+                    this.vida.randomInit().then(() => {
+                        const WHITE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
+                        this.vida.updateDocument({ width: 794, height: 1123, background: { type: 'urlphoto', url: WHITE } }).then(() => {
+                            this.isLoading = false;
+                            this.load(this.vida.toJson()).then(() => {
+                                this.hasChanged = false;
+                                this.marquerModifie();
+                            });
+                        });
+                    });
+                },
+            });
+        },
         reset() {
+            if (this.drawingActive) this.stopDrawing();
             if (this.vida) this.vida.destroy();
             this.isLoading = true;
             this.isExporting = false;
@@ -541,6 +606,7 @@ export default {
             this.cacheImage = {};
             this.selectedComponent = undefined;
             this.selectedComponentptions = {};
+            this.multiSelection = [];
         },
         setup() {
             return new Promise((resolve) => {
@@ -579,8 +645,19 @@ export default {
                 });
             });
         },
-        updateDocument(options) {
+        updateDocument(options, record = true) {
             this.marquerModifie();
+            // historique global : état avant / après des seules options modifiées
+            if (record && !this.isLoading && this.vida && Object.keys(options).some((k) => k !== 'i18n' && k !== 'rules')) {
+                const before = {};
+                const after = {};
+                for (const k of Object.keys(options)) {
+                    if (k === 'i18n' || k === 'rules') continue;
+                    before[k] = JSON.parse(JSON.stringify(this.vida.document[k] === undefined ? null : this.vida.document[k]));
+                    after[k] = JSON.parse(JSON.stringify(options[k] === undefined ? null : options[k]));
+                }
+                this.vida.recordDocumentChange(before, after);
+            }
             const rerender = options.rules !== undefined || _get(options, 'i18n.editingLocale') !== undefined;
             const fitCanvas = options.width !== undefined || options.height !== undefined;
             return new Promise((resolve) => {
@@ -624,9 +701,106 @@ export default {
                 this.selectedComponent = undefined;
             }
         },
+        // --- Historique global (annuler / rétablir pour tout le visuel)
+        undoAny() {
+            if (this.drawingActive && this.drawStrokes > 0 && this.$refs.drawing) {
+                this.$refs.drawing.undo();
+                return;
+            }
+            this.marquerModifie();
+            this.vida.undoGlobal();
+        },
+        redoAny() {
+            if (this.drawingActive && this.drawRedo > 0 && this.$refs.drawing) {
+                this.$refs.drawing.redo();
+                return;
+            }
+            this.marquerModifie();
+            this.vida.redoGlobal();
+        },
+        // un élément a été recréé ou retiré par annuler / rétablir : on remet à jour les listes
+        structureChanged(id, added) {
+            if (!added) {
+                delete this.cacheImage[id];
+                delete this.cacheTexts[id];
+                delete this.cacheEmojis[id];
+                if (this.selectedComponent === id) this.selectedComponent = undefined;
+                this.multiSelection = this.multiSelection.filter((i) => i !== id);
+            } else {
+                const p = this.vida.componentParams(id);
+                if (p.type === 'image') this.cacheImage[id] = this.imagePreview(p.image);
+                else if (p.type === 'text' || p.type === 'textchoice') this.cacheTexts[id] = this.textPreview(p.text);
+                else if (p.type === 'emoji') this.cacheEmojis[id] = this.textPreview(p.text);
+            }
+            ++this.rerenderImagesList;
+            ++this.rerenderTextsList;
+            ++this.rerenderEmojisList;
+        },
+        // --- Sélection multiple : groupes, alignement, distribution, suppression
+        groupSelection() {
+            this.marquerModifie();
+            this.vida.groupSelection();
+        },
+        ungroupSelection() {
+            this.marquerModifie();
+            this.vida.ungroupSelection();
+        },
+        removeSelection() {
+            const ids = this.vida.selectedIds();
+            if (ids.length === 0) return;
+            this.vida.selectComponent(this.vida.document.id);
+            ids.forEach((id) => this.removeComponent(id));
+        },
+        alignSelection(axis, mode, relativeTo) {
+            this.marquerModifie();
+            this.vida.alignSelection(axis, mode, relativeTo);
+        },
+        distributeSelection(axis, mode) {
+            this.marquerModifie();
+            this.vida.distributeSelection(axis, mode);
+        },
+        // Clavier : flèches = déplacer la sélection (Maj = par 10 px), Ctrl+A, Ctrl+G, Échap
+        onKeyDown(e) {
+            if (!this.vida || this.isLoading || this.isExporting || this.textFrameActive) return;
+            const t = e.target;
+            const tag = t && t.tagName ? t.tagName.toUpperCase() : '';
+            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+            if (document.querySelector('.modal.is-active')) return;
+            const mod = e.ctrlKey || e.metaKey;
+            const key = e.key;
+            if (mod && !e.altKey && (key === 'z' || key === 'Z') && !e.shiftKey) {
+                e.preventDefault();
+                this.undoAny();
+                return;
+            }
+            if (mod && !e.altKey && (key === 'y' || key === 'Y' || ((key === 'z' || key === 'Z') && e.shiftKey))) {
+                e.preventDefault();
+                this.redoAny();
+                return;
+            }
+            const arrows = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
+            if (this.drawingActive) return; // pendant le dessin : pas de déplacement ni de sélection
+            if (arrows[key] && !mod && !e.altKey) {
+                if (this.vida.selectedIds().length === 0) return;
+                e.preventDefault();
+                const step = e.shiftKey ? 10 : 1;
+                this.marquerModifie();
+                this.vida.moveSelection(arrows[key][0] * step, arrows[key][1] * step, true);
+            } else if (mod && (key === 'a' || key === 'A') && !e.shiftKey) {
+                e.preventDefault();
+                this.vida.selectAll();
+            } else if (mod && (key === 'g' || key === 'G')) {
+                e.preventDefault();
+                if (e.shiftKey) this.ungroupSelection();
+                else if (this.vida.selectedIds().length > 1) this.groupSelection();
+            } else if (key === 'Escape' && this.vida.selectedIds().length > 0) {
+                this.vida.selectComponent(this.vida.document.id);
+            }
+        },
         duplicateComponent(id) {
             this.marquerModifie();
             const options = this.vida.componentParams(id);
+            delete options.groupId; // la copie ne rejoint pas le groupe de l'original
             options.id = generateId();
             options.position.x *= 1.05;
             options.position.y *= 1.05;
@@ -649,14 +823,14 @@ export default {
                 this.vida.selectComponent(options.id);
             });
         },
-        undoComponent(id) {
+        undoComponent() {
             this.marquerModifie();
-            this.vida.undoComponent(id);
+            this.vida.undoGlobal();
             // TODO: rerender
         },
-        redoComponent(id) {
+        redoComponent() {
             this.marquerModifie();
-            this.vida.redoComponent(id);
+            this.vida.redoGlobal();
             // TODO: rerender
         },
         chooseTemplate(templateId) {
@@ -679,9 +853,11 @@ export default {
         },
         addIllustration(element) {
             this.marquerModifie();
-            this.vida.createRandomComponent('internalsvg').then((componentId) => {
+            // l'élément choisi est chargé d'emblée (plus d'élément au hasard qui clignote une seconde)
+            const image = { ...element, gallery: 'images', type: 'internalsvg' };
+            this.vida.createRandomComponent('internalsvg', { image }).then((componentId) => {
                 this.vida
-                    .updateComponent(componentId, { image: { ...element, gallery: 'images', type: 'internalsvg' } })
+                    .updateComponent(componentId, { image })
                     .then(() => {
                         this.cacheImage[componentId] = this.imagePreview(this.vida.componentParams(componentId).image);
                         ++this.rerenderImagesList;
@@ -798,15 +974,52 @@ export default {
             const docHeight = this.cacheDocument.height || 1000;
             // Échelle qui fait tenir toute la photo dans le visuel
             const scale = (100 * Math.min(docWidth / width, docHeight / height)) / Math.max(docWidth / width, docHeight / height);
-            this.vida.createRandomComponent('internalsvg').then((componentId) => {
+            const image = { type: 'urlphoto', url: dataUrl };
+            this.vida.createRandomComponent('internalsvg', { image, scale: Math.max(scale, 1) }).then((componentId) => {
                 this.vida
-                    .updateComponent(componentId, { image: { type: 'urlphoto', url: dataUrl }, scale: Math.max(scale, 1) })
+                    .updateComponent(componentId, { image, scale: Math.max(scale, 1) })
                     .then(() => {
                         this.cacheImage[componentId] = this.imagePreview(this.vida.componentParams(componentId).image);
                         ++this.rerenderImagesList;
                         this.vida.selectComponent(componentId);
                         if (then) then();
                     });
+            });
+        },
+        // Zone de texte dessinée à la souris : la zone prend la largeur et la hauteur du cadre tiré
+        startTextFrame() {
+            if (this.drawingActive) this.stopDrawing();
+            this.textFrameActive = true;
+            this.$buefy.toast.open({ message: this.$t('TEXTS.DRAW_HINT'), type: 'is-info', duration: 5000 });
+        },
+        createTextFrame({ x, y, w, h }) {
+            this.textFrameActive = false;
+            this.marquerModifie();
+            const docWidth = this.cacheDocument.width || 1000;
+            const docHeight = this.cacheDocument.height || 1000;
+            const override = {
+                text: 'Votre texte',
+                font: 'Barlow Semi Condensed',
+                color: '#1d1c1d',
+                justification: 'left',
+                // taille raisonnable, et jamais plus haute que le cadre
+                size: Math.max(10, Math.round(Math.min(docWidth * 0.04, h / 1.4))),
+                boxWidth: Math.round(w),
+                boxHeight: Math.round(h),
+                verticalAlign: 'top',
+                underline: false,
+                strikethrough: false,
+                background: { mode: 'disabled' },
+                shadow: { enabled: false },
+                angle: 0,
+                position: { x: (x + w / 2) / docWidth, y: (y + h / 2) / docHeight },
+            };
+            this.vida.createRandomComponent('text').then((componentId) => {
+                this.vida.updateComponent(componentId, override).then(() => {
+                    this.cacheTexts[componentId] = this.textPreview(override.text);
+                    ++this.rerenderTextsList;
+                    this.vida.selectComponent(componentId);
+                });
             });
         },
         addText(kind) {
@@ -819,6 +1032,7 @@ export default {
                 color: '#1d1c1d',
                 size: Math.round(width * (isTitle ? 0.09 : 0.04)),
                 background: { mode: 'disabled' },
+                shadow: { enabled: false },
             };
             this.vida.createRandomComponent('text').then((componentId) => {
                 this.vida.updateComponent(componentId, override).then(() => {
@@ -1231,6 +1445,7 @@ export default {
         document.dispatchEvent(new Event('x-app-rendered'));
 
         window.addEventListener('resize', this.handleResize);
+        window.addEventListener('keydown', this.onKeyDown);
         this.sauverMaintenant = () => this.sauverBrouillon();
         window.addEventListener('pagehide', this.sauverMaintenant);
         document.addEventListener('visibilitychange', this.sauverMaintenant);
@@ -1264,6 +1479,7 @@ export default {
         window.removeEventListener('pagehide', this.sauverMaintenant);
         document.removeEventListener('visibilitychange', this.sauverMaintenant);
         window.removeEventListener('resize', this.handleResize);
+        window.removeEventListener('keydown', this.onKeyDown);
         this.vida.destroy();
     },
     beforeRouteUpdate(to, from, next) {

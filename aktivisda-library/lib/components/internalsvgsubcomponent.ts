@@ -9,6 +9,13 @@ import { Canvg } from 'canvg';
 import InvalidDataError from '../invaliddataerror.ts';
 import { assignValues, overrideValues } from '../utils/utils.ts';
 
+/** Retire les références à des filtres SVG (filter="url(#..)" ou filter:url(#..) dans un style). */
+function withoutFilters(svg: string): string {
+    return svg
+        .replace(/\sfilter="url\([^)]*\)"/g, '')
+        .replace(/filter\s*:\s*url\([^)]*\)\s*;?/g, '');
+}
+
 export default class InternalSvgVidaSubComponent extends ImageVidaSubComponent {
 
     colors: ColorsDict | undefined;
@@ -120,7 +127,9 @@ export default class InternalSvgVidaSubComponent extends ImageVidaSubComponent {
             if (!this.canvas) this.canvas = window.document.createElement('canvas');
             const ctx = this.canvas.getContext('2d');
             try {
-                this.canvgElement = Canvg.fromString(ctx!, this.coloredString!);
+                // Canvg applique un filtre (ex. ombre portée = flood + flou + décalage) à tout le groupe : il flouterait
+                // le logo entier. On l'ignore pour le dessin à l'écran et dans les PNG/JPEG (le PDF l'ignore déjà).
+                this.canvgElement = Canvg.fromString(ctx!, withoutFilters(this.coloredString!));
             } catch (e) {
                 console.error(e);
                 reject();

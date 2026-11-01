@@ -100,6 +100,13 @@ export interface ComponentParams {
     justification: string;
     // Largeur (px) d'une zone de texte à retour à la ligne automatique ; 0 ou absent = largeur automatique
     boxWidth: number;
+    // Hauteur minimale (px) de la zone de texte ; 0 ou absent = hauteur du texte
+    boxHeight: number;
+    // Position du texte dans une zone plus haute que lui : top, middle ou bottom
+    verticalAlign: string;
+    // Texte souligné / barré
+    underline: boolean;
+    strikethrough: boolean;
     // Adresse web (ou mailto:, tel:) rendue cliquable dans l'export PDF
     link: string;
     angle: number;
@@ -108,6 +115,8 @@ export interface ComponentParams {
     // Effets sur l'élément : opacité (0 à 1) et flou (en pixels du visuel, 0 = net)
     opacity: number;
     blur: number;
+    /** Identifiant du groupe auquel appartient l'élément (éléments groupés = sélectionnés ensemble). */
+    groupId: string;
     flipY: boolean;
     skewX: number;
     skewY: number;

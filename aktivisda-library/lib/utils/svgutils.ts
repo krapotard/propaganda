@@ -22,6 +22,46 @@ function colorsChanged(previousColors: ColorsDict, newColors: ColorsDict) {
 }
 
 /**
+ * Recopie les règles d'un bloc de style (ex. `.st1{fill:#fff}` d'un SVG Illustrator) dans l'attribut style de chaque
+ * élément concerné, puis retire le bloc. Canvg et le PDF ne lisent pas ces classes : les formes sortent noires.
+ * Le style déjà écrit sur l'élément garde la priorité.
+ */
+function inlineStyleSheets(svgString: string): string {
+    if (svgString.indexOf('<style') === -1) return svgString;
+    try {
+        const doc = new DOMParser().parseFromString(svgString, 'image/svg+xml');
+        if (doc.getElementsByTagName('parsererror').length > 0) return svgString;
+        const styles = Array.from(doc.getElementsByTagName('style'));
+        if (styles.length === 0) return svgString;
+        const rules: Array<{ selector: string; decl: string }> = [];
+        for (const st of styles) {
+            const css = (st.textContent || '').replace(/\/\*[\s\S]*?\*\//g, '');
+            const re = /([^{}]+)\{([^{}]*)\}/g;
+            let m: RegExpExecArray | null;
+            while ((m = re.exec(css)) !== null) {
+                const selector = m[1].trim();
+                if (!selector || selector.startsWith('@')) continue;
+                rules.push({ selector, decl: m[2].trim().replace(/;?$/, ';') });
+            }
+        }
+        for (const rule of rules) {
+            for (const sel of rule.selector.split(',')) {
+                let nodes: Element[] = [];
+                try { nodes = Array.from(doc.querySelectorAll(sel.trim())); } catch (e) { nodes = []; }
+                for (const node of nodes) {
+                    const old = node.getAttribute('style') || '';
+                    node.setAttribute('style', rule.decl + old);
+                }
+            }
+        }
+        for (const st of styles) st.parentNode && st.parentNode.removeChild(st);
+        return new XMLSerializer().serializeToString(doc.documentElement);
+    } catch (e) {
+        return svgString;
+    }
+}
+
+/**
  * prepareSvgString is the output of 'prepareColors'
  *
  * @param preparedSvgString
@@ -33,11 +73,23 @@ function colorSvgString(preparedSvgString: string, colors: ColorsDict) {
         throw new InvalidDataError('A defined svg string is required in preparecolors');
 
 
-    let coloredString = preparedSvgString;
+    // Les images intégrées (data:...;base64,...) ne doivent jamais être touchées : une suite « CCxxxxxx » peut
+    // apparaître par hasard dans le texte base64 et corrompre l'image (fond tronqué).
+    const payloads: string[] = [];
+    let coloredString = preparedSvgString.replace(/base64,[A-Za-z0-9+/=\s]{64,}/g, (m) => {
+        payloads.push(m);
+        return `base64,@@PAYLOAD${payloads.length - 1}@@`;
+    });
     for (const colorKey in colors) {
         const regex = new RegExp('CC' + colorKey.slice(1), 'g');
         coloredString = coloredString.replace(regex, colors[colorKey]);
     }
+    // Couleur non déclarée dans la fiche du symbole (ex. #fff écrit en 3 chiffres, ou ajoutée à la main) :
+    // on la remet telle quelle, sinon « CCffffff » est illisible et le rendu devient noir.
+    coloredString = coloredString.replace(/CC([0-9a-fA-F]{6})(?![0-9a-fA-F])/g, '#$1');
+    coloredString = coloredString.replace(/base64,@@PAYLOAD(\d+)@@/g, (_m, i) => payloads[Number(i)]);
+
+    coloredString = inlineStyleSheets(coloredString);
 
     const blob = new Blob([coloredString], { type: 'image/svg+xml' });
     const url = URL.createObjectURL(blob);
