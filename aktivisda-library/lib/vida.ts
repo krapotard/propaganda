@@ -533,7 +533,7 @@ export default class Vida {
             else target = (ref.s + ref.e) / 2 - sp.l / 2;
             const delta = target - sp.s;
             if (Math.abs(delta) < 0.01) continue;
-            it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+            it.move(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
         }
         this._afterArrange();
     }
@@ -555,7 +555,7 @@ export default class Vida {
             let cursor = first;
             for (const it of sorted) {
                 const delta = cursor - pos(it.box);
-                if (Math.abs(delta) >= 0.01) it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+                if (Math.abs(delta) >= 0.01) it.move(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
                 cursor += len(it.box) + gap;
             }
         } else {
@@ -563,18 +563,39 @@ export default class Vida {
             const k1 = key(sorted[n - 1].box);
             sorted.forEach((it, i) => {
                 const delta = k0 + ((k1 - k0) * i) / (n - 1) - key(it.box);
-                if (Math.abs(delta) >= 0.01) it.comp.moveByPx(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
+                if (Math.abs(delta) >= 0.01) it.move(axis === 'x' ? delta : 0, axis === 'y' ? delta : 0);
             });
         }
         this._afterArrange();
     }
 
-    _selectionBoxes(): Array<{ comp: AbstractVidaComponent; box: Box }> {
-        const result: Array<{ comp: AbstractVidaComponent; box: Box }> = [];
+    /** Unités d'alignement : un groupe = un seul bloc (boîte englobante), un élément seul = lui-même. */
+    _selectionBoxes(): Array<{ comp: AbstractVidaComponent; comps: AbstractVidaComponent[]; box: Box; move: (dx: number, dy: number) => void }> {
+        const result: Array<{ comp: AbstractVidaComponent; comps: AbstractVidaComponent[]; box: Box; move: (dx: number, dy: number) => void }> = [];
+        const byGroup: { [g: string]: (typeof result)[0] } = {};
         for (const id of this.selectedIds()) {
             const comp = this._findComponent(id);
             const box = comp ? comp.boundingBox() : undefined;
-            if (comp && box) result.push({ comp, box });
+            if (!comp || !box) continue;
+            const g = comp.options.groupId;
+            const unit = g ? byGroup[g] : undefined;
+            if (unit) {
+                const x1 = Math.min(unit.box.x, box.x);
+                const y1 = Math.min(unit.box.y, box.y);
+                const x2 = Math.max(unit.box.x + unit.box.width, box.x + box.width);
+                const y2 = Math.max(unit.box.y + unit.box.height, box.y + box.height);
+                unit.box = { x: x1, y: y1, width: x2 - x1, height: y2 - y1 } as Box;
+                unit.comps.push(comp);
+            } else {
+                const u: (typeof result)[0] = {
+                    comp,
+                    comps: [comp],
+                    box: { ...box } as Box,
+                    move: (dx: number, dy: number) => u.comps.forEach((c) => c.moveByPx(dx, dy)),
+                };
+                result.push(u);
+                if (g) byGroup[g] = u;
+            }
         }
         return result;
     }
