@@ -71,6 +71,25 @@
                         </b-field>
                     </div>
 
+                    <div v-if="!inTranslationMode" class="mt-2 text-style-bar">
+                        <b-field :label="$t('TEXTS.FONT_SIZE')">
+                            <b-numberinput :value="local.size" :min="1" :max="3000" controls-position="compact"
+                                class="font-size-field" data-test="font-size" @input="onFontSizeInput" />
+                        </b-field>
+                        <div class="buttons has-addons style-buttons" style="margin-top: 0.4rem; margin-bottom: 0">
+                            <b-button style="min-width: 2.6rem" :type="boldOn ? 'is-primary' : ''" icon-left="format-bold" data-test="bold"
+                                :disabled="!canToggleBold" :title="canToggleBold ? $t('TEXTS.BOLD') : $t('TEXTS.NO_VARIANT')"
+                                @click="toggleFontStyle('bold')" />
+                            <b-button style="min-width: 2.6rem" :type="italicOn ? 'is-primary' : ''" icon-left="format-italic" data-test="italic"
+                                :disabled="!canToggleItalic" :title="canToggleItalic ? $t('TEXTS.ITALIC') : $t('TEXTS.NO_VARIANT')"
+                                @click="toggleFontStyle('italic')" />
+                            <b-button style="min-width: 2.6rem" :type="local.underline ? 'is-primary' : ''" icon-left="format-underline" data-test="underline"
+                                :title="$t('TEXTS.UNDERLINE')" @click="emitValue('underline')(!local.underline)" />
+                            <b-button style="min-width: 2.6rem" :type="local.strikethrough ? 'is-primary' : ''" icon-left="format-strikethrough-variant" data-test="strike"
+                                :title="$t('TEXTS.STRIKE')" @click="emitValue('strikethrough')(!local.strikethrough)" />
+                        </div>
+                    </div>
+
                     <div v-if="!inTranslationMode" class="mt-2">
                         <b-field :label="$t('TEXTS.LINK')" :message="$t('TEXTS.LINK_HELP')">
                             <b-input type="url" :value="optionValue('link') || ''" icon="link"
@@ -83,6 +102,20 @@
                         <number-picker v-if="boxEnabled" :min="20" :max="Math.max(width || 0, optionValue('boxWidth') || 0, 200)"
                             :value="optionValue('boxWidth')" @input="(e) => emitValue('boxWidth')(e)" unit="px"
                             :prepend="$t('COMMON.SMALL')" :append="$t('COMMON.BIG')" />
+                        <template v-if="boxEnabled">
+                            <b-field :label="$t('TEXTS.BOX_HEIGHT')" :message="$t('TEXTS.BOX_HEIGHT_HELP')">
+                                <b-numberinput :value="local.boxHeight" :min="0" :max="10000" controls-position="compact"
+                                    data-test="box-height" @input="(e) => emitValue('boxHeight')(Number(e) || 0)" />
+                            </b-field>
+                            <b-field class="mt-2" :label="$t('TEXTS.VALIGN')">
+                                <b-radio-button :value="local.verticalAlign" native-value="top" type="is-outlined is-primary"
+                                    @input="(e) => emitValue('verticalAlign')(e)"><b-icon icon="format-vertical-align-top" /><span>{{ $t('TEXTS.VALIGN_TOP') }}</span></b-radio-button>
+                                <b-radio-button :value="local.verticalAlign" native-value="middle" type="is-outlined is-primary"
+                                    @input="(e) => emitValue('verticalAlign')(e)"><b-icon icon="format-vertical-align-center" /><span>{{ $t('TEXTS.VALIGN_MIDDLE') }}</span></b-radio-button>
+                                <b-radio-button :value="local.verticalAlign" native-value="bottom" type="is-outlined is-primary"
+                                    @input="(e) => emitValue('verticalAlign')(e)"><b-icon icon="format-vertical-align-bottom" /><span>{{ $t('TEXTS.VALIGN_BOTTOM') }}</span></b-radio-button>
+                            </b-field>
+                        </template>
                     </div>
                 </template>
             </picker-container>
@@ -202,6 +235,8 @@ import ComponentToolbar from '@/components/pickers/ComponentToolbar.vue';
 import TextPicker from '@/components/pickers/TextPicker.vue';
 
 import { computeRandomDistortedSquare, pSBC } from 'aktivisda-library';
+import { useStore } from '@datastore';
+import { parseFontStyle, buildFontName } from '@/plugins/font-variants.js';
 
 import _get from 'lodash.get'
 import _set from 'lodash.set'
@@ -253,7 +288,16 @@ export default {
             shadowEnabled_: this.options.shadow.enabled,
             textJustification: this.options.justification,
             rerenderTextPicker: 0,
-            modal: undefined
+            modal: undefined,
+            // Valeurs de style suivies localement : la fiche reçue de l'éditeur n'est pas relue après chaque modification
+            local: {
+                font: this.options.font,
+                size: this.options.size,
+                underline: !!this.options.underline,
+                strikethrough: !!this.options.strikethrough,
+                boxHeight: this.options.boxHeight || 0,
+                verticalAlign: this.options.verticalAlign || 'top',
+            },
         }
     },
     computed: {
@@ -352,7 +396,12 @@ export default {
             },
             set: function (value) {
                 if (value === this.boxEnabled) return;
-                this.$emit('update', { boxWidth: value ? Math.round((this.width || 1000) * 0.6) : 0 });
+                if (!value) {
+                    this.local.boxHeight = 0;
+                    this.$emit('update', { boxWidth: 0, boxHeight: 0 });
+                } else {
+                    this.$emit('update', { boxWidth: Math.round((this.width || 1000) * 0.6) });
+                }
             },
         },
         // TODO: cannot work in translation mode, maybe useless?
@@ -397,8 +446,42 @@ export default {
         isUndefined: function () {
             return Object.keys(this.options).length == 1;
         },
+        // Gras / italique : on passe à la variante de la même famille de polices (« … Gras », « … Italique »)
+        currentFontName: function () {
+            return this.local.font || '';
+        },
+        boldOn: function () {
+            return parseFontStyle(this.currentFontName).bold;
+        },
+        italicOn: function () {
+            return parseFontStyle(this.currentFontName).italic;
+        },
+        canToggleBold: function () {
+            const { base, bold, italic } = parseFontStyle(this.currentFontName);
+            return bold || this.fontExists(buildFontName(base, true, italic));
+        },
+        canToggleItalic: function () {
+            const { base, bold, italic } = parseFontStyle(this.currentFontName);
+            return italic || this.fontExists(buildFontName(base, bold, true));
+        },
     },
     methods: {
+        fontExists(name) {
+            const store = useStore();
+            return (store.fonts || []).some((f) => f.fontName === name);
+        },
+        toggleFontStyle(kind) {
+            const { base, bold, italic } = parseFontStyle(this.currentFontName);
+            const name = kind === 'bold' ? buildFontName(base, !bold, italic) : buildFontName(base, bold, !italic);
+            if (this.fontExists(name)) this.emitValue('font')(name);
+        },
+        // Taille de la police saisie au clavier : envoyée une fois la frappe terminée
+        onFontSizeInput(value) {
+            const size = Number(value);
+            if (!Number.isFinite(size) || size < 1) return;
+            clearTimeout(this._sizeTimer);
+            this._sizeTimer = setTimeout(() => this.emitValue('size')(Math.round(size)), 350);
+        },
         removeComponent() {
             // TODO confirm box ? Oui en attendant le undo/redo
             this.$emit('remove');
@@ -408,6 +491,9 @@ export default {
             return (newValue) => {
                 if (key === 'background.mode') {
                     this.backgroundMode = newValue;
+                }
+                if (!this.inTranslationMode && Object.prototype.hasOwnProperty.call(this.local, key)) {
+                    this.$set(this.local, key, newValue);
                 }
                 const _key = this.inTranslationMode ? `i18n.${this.editingLang.code}.${key}` : key;
                 this.$emit('update', _set({}, _key, newValue));
@@ -434,6 +520,7 @@ export default {
     },
     // BeforeUnmount in Vue3
     beforeDestroy() {
+        clearTimeout(this._sizeTimer);
         if (this.modal) this.modal.close();
     }
 };

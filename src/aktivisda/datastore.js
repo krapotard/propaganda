@@ -8,6 +8,7 @@ const allLangs = require('@/assets/langs.json');
 
 import { mapElements, computeNbModifiedElements, computeNbNewElements, checkCategory } from '@/plugins/datastoreutils.js';
 import { loadLanguage, i18n } from '../plugins/i18n';
+import { withExtraFonts } from '@/plugins/font-variants.js';
 
 import { createMatomo } from  '@/aktivisda/plugins/matomo.js';
 
@@ -242,7 +243,8 @@ export const useStore = defineStore('store', {
 
                 this.loading[dataKey] = true;
                 requestFile(url).then((jsonData) => {
-                    const elements = Array.isArray(jsonData) ? jsonData : jsonData[serverKey];
+                    let elements = Array.isArray(jsonData) ? jsonData : jsonData[serverKey];
+                    if (dataKey === 'fonts' && Array.isArray(elements)) elements = withExtraFonts(elements);
                     this.elements[dataKey] = Array.isArray(elements) ? mapElements(elements) : elements;
                     this.loading[dataKey] = false;
                     this.loaded[dataKey] = true;

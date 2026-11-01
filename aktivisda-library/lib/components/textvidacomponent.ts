@@ -53,6 +53,14 @@ export default class TextVidaComponent extends AbstractVidaComponent {
     declare konvaElement: Konva.Group | undefined;
     declare konvaElementText: Konva.Text | undefined;
     declare konvaElementBackground: Konva.Shape | undefined;
+    // Cadre invisible qui donne sa taille à la zone de texte (poignées de redimensionnement)
+    konvaElementFrame: Konva.Rect | undefined;
+    // Trait de soulignement / barré, dessiné par nos soins (identique à l'écran, en PNG/JPEG et en PDF)
+    konvaElementDeco: Konva.Shape | undefined;
+    boxH: number = 0;
+    vAlign: string = 'top';
+    underline: boolean = false;
+    strikethrough: boolean = false;
 
     constructor(vida: Vida, componentId: Uuid, type: 'text' | 'emoji' | 'textchoice') {
         super(vida, componentId);
@@ -148,7 +156,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             const padding = Math.ceil((this.konvaElementText.fontSize() * this.backgroundPadding) / 100);
 
             const color = this.konvaElementBackground.fill();
-            const boxHeight = this.konvaElementText.height() + 2 * padding;
+            const boxHeight = this.frameHeight() + 2 * padding;
             const boxWidth = this.konvaElementText.width() + 2 * padding;
 
             // WARNING copy
@@ -280,6 +288,21 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                 </text>`;
         }
 
+        // Soulignement et barré : traits dessinés à la même place qu'à l'écran
+        let decorationSvg = '';
+        const decorationLines = this.decorationLines();
+        if (decorationLines.length) {
+            const tx = offset + this.konvaElementText.x();
+            const ty = offset + this.konvaElementText.y();
+            const fill = svgFillAttrs(this.konvaElementText.fill());
+            decorationSvg = `<g transform="rotate(${this.konvaElement.rotation()})">${decorationLines
+                .map(
+                    (l) =>
+                        `<rect x="${tx + l.x1}" y="${ty + l.y - l.thickness / 2}" width="${Math.max(0, l.x2 - l.x1)}" height="${l.thickness}" ${fill}/>`,
+                )
+                .join('')}</g>`;
+        }
+
         const textSvgString = `
         <svg width="${textViewbox.width}" height="${textViewbox.height}" viewBox="${textViewbox.bottom_left[0]} ${textViewbox.bottom_left[1]} ${textViewbox.width} ${textViewbox.height}">
         ${shadowText}
@@ -292,6 +315,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             y="${textY}">
             ${lines.map((line: string, index: number) => justifiedTspans(line, index, 0)).join('')}
         </text>
+        ${decorationSvg}
          </svg>`;
 
         content.push({
@@ -326,6 +350,11 @@ export default class TextVidaComponent extends AbstractVidaComponent {
     static internalDefaultOptions(): ComponentOptions {
         return {
             textChoices: {},
+            boxWidth: 0,
+            boxHeight: 0,
+            verticalAlign: 'top',
+            underline: false,
+            strikethrough: false,
         };
     }
 
@@ -339,7 +368,9 @@ export default class TextVidaComponent extends AbstractVidaComponent {
             this.konvaTransformer = new Konva.Transformer({
                 rotateEnabled: true,
                 draggable: true,
-                enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+                // Coins : tout est agrandi, texte compris. Côtés : seule la zone change, la taille du texte reste.
+                enabledAnchors: ['top-left', 'top-center', 'top-right', 'middle-left', 'middle-right', 'bottom-left', 'bottom-center', 'bottom-right'],
+                flipEnabled: false,
                 boundBoxFunc: function (_oldBox, newBox) {
                     newBox.width = Math.max(1, newBox.width);
                     return newBox;
@@ -500,6 +531,8 @@ export default class TextVidaComponent extends AbstractVidaComponent {
         if (!this.konvaElement) return;
         if (this.konvaElementText) this.konvaElementText.destroy();
         if (this.konvaElementBackground) this.konvaElementBackground.destroy();
+        if (this.konvaElementFrame) this.konvaElementFrame.destroy();
+        if (this.konvaElementDeco) this.konvaElementDeco.destroy();
         this.konvaElement.destroy();
     }
 
@@ -655,6 +688,12 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                 });
 
                 this.konvaElementBackground = new Konva.Shape();
+                this.konvaElementFrame = new Konva.Rect({ listening: false, x: 0, y: 0, width: 0, height: 0 });
+                this.konvaElementDeco = new Konva.Shape({
+                    listening: false,
+                    sceneFunc: (context: any, shape: any) => this._drawDecoration(context, shape),
+                });
+                this.konvaElement.on('transform', () => this._onTransform());
 
                 // console.assert(options.background !== undefined); // since 0.9.1
                 if (options.background !== undefined) {
@@ -665,8 +704,10 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                     }
                 }
 
+                this.konvaElement.add(this.konvaElementFrame);
                 this.konvaElement.add(this.konvaElementBackground);
                 this.konvaElement.add(this.konvaElementText);
+                this.konvaElement.add(this.konvaElementDeco);
 
                 this._recomputePosition = true;
 
@@ -741,6 +782,29 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                     this.konvaElementText.width(wantedWidth as any);
                     this._recomputePosition = true;
                     if (this.supportBackground()) recomputeTextBackground = true;
+                    this.draw = true;
+                }
+            }
+
+            // Hauteur de la zone, alignement vertical, souligné et barré
+            if (this.type !== 'emoji') {
+                if (options.boxHeight !== undefined && (options.boxHeight || 0) !== this.boxH) {
+                    this.boxH = options.boxHeight || 0;
+                    this._recomputePosition = true;
+                    if (this.supportBackground()) recomputeTextBackground = true;
+                    this.draw = true;
+                }
+                if (options.verticalAlign !== undefined && options.verticalAlign !== this.vAlign) {
+                    this.vAlign = options.verticalAlign;
+                    this._recomputePosition = true;
+                    this.draw = true;
+                }
+                if (options.underline !== undefined && !!options.underline !== this.underline) {
+                    this.underline = !!options.underline;
+                    this.draw = true;
+                }
+                if (options.strikethrough !== undefined && !!options.strikethrough !== this.strikethrough) {
+                    this.strikethrough = !!options.strikethrough;
                     this.draw = true;
                 }
             }
@@ -839,9 +903,9 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                     const padding = options.background.padding;
                     this.konvaElement.setAttrs({
                         offsetX: this.konvaElementText.width() / 2 + padding,
-                        offsetY: this.konvaElementText.height() / 2 + padding,
-                        width: this.konvaElementText.height() + 2 * padding,
-                        height: this.konvaElementText.height() + 2 * padding,
+                        offsetY: this.frameHeight() / 2 + padding,
+                        width: this.konvaElementText.width() + 2 * padding,
+                        height: this.frameHeight() + 2 * padding,
                     });
                     this.konvaElementText.setAttrs({
                         x: padding,
@@ -870,26 +934,28 @@ export default class TextVidaComponent extends AbstractVidaComponent {
 
                 const padding = this.backgroundMode !== 'disabled' ? Math.ceil((this.konvaElementText.fontSize() * this.backgroundPadding) / 100) : 0;
 
+                const frameHeight = this.frameHeight();
                 this.konvaElement.setAttrs({
                     x: x,
                     y: y,
                     offsetX: this.konvaElementText.width() / 2 + padding,
-                    offsetY: this.konvaElementText.height() / 2 + padding,
+                    offsetY: frameHeight / 2 + padding,
                     width: this.konvaElementText.width() + 2 * padding,
-                    height: this.konvaElementText.height() + 2 * padding,
+                    height: frameHeight + 2 * padding,
                 });
 
                 this.konvaElementText.setAttrs({
                     x: padding,
-                    y: padding,
+                    y: padding + this.textTopOffset(),
                 });
+                this._syncFrame(padding);
                 this._recomputePosition = true;
                 this.draw = true;
             }
 
             if (recomputeTextBackground) {
                 const padding = Math.ceil((this.konvaElementText.fontSize() * this.backgroundPadding) / 100);
-                const height = this.konvaElementText.height() + 2 * padding;
+                const height = this.frameHeight() + 2 * padding;
                 const width = this.konvaElementText.width() + 2 * padding;
                 const radius = this.options.background && this.options.background!.radius ? this.options.background!.radius : 0;
                 const pi = Math.PI;
@@ -904,7 +970,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
 
                     this.konvaElementBackground.setAttrs({
                         width: this.konvaElementText.width() + 2 * padding,
-                        height: this.konvaElementText.height() + 2 * padding,
+                        height: this.frameHeight() + 2 * padding,
                         sceneFunc(context: any, shape: any) {
                             context.beginPath();
                             context.moveTo(distortion[0][0], distortion[0][1]); // top-left
@@ -920,7 +986,7 @@ export default class TextVidaComponent extends AbstractVidaComponent {
                 } else if (this.backgroundMode === 'rounded') {
                     this.konvaElementBackground.setAttrs({
                         width: this.konvaElementText.width() + 2 * padding,
-                        height: this.konvaElementText.height() + 2 * padding,
+                        height: this.frameHeight() + 2 * padding,
                         sceneFunc(context: any, shape: any) {
                             context.beginPath();
                             // moving clockwise
@@ -964,6 +1030,183 @@ export default class TextVidaComponent extends AbstractVidaComponent {
         });
     }
 
+    /** Marge autour du texte quand un fond est affiché (px). */
+    _padding(): number {
+        return this.backgroundMode !== 'disabled' && this.konvaElementText
+            ? Math.ceil((this.konvaElementText.fontSize() * this.backgroundPadding) / 100)
+            : 0;
+    }
+
+    /** Hauteur de la zone : celle du texte, ou la hauteur choisie si elle est plus grande. */
+    frameHeight(): number {
+        if (!this.konvaElementText) return 0;
+        return Math.max(this.konvaElementText.height(), this.boxH || 0);
+    }
+
+    /** Décalage du texte dans une zone plus haute que lui (alignement vertical). */
+    textTopOffset(): number {
+        if (!this.konvaElementText) return 0;
+        const free = this.frameHeight() - this.konvaElementText.height();
+        if (free <= 0) return 0;
+        if (this.vAlign === 'middle') return free / 2;
+        if (this.vAlign === 'bottom') return free;
+        return 0;
+    }
+
+    _syncFrame(padding: number) {
+        if (!this.konvaElementText) return;
+        if (this.konvaElementFrame) {
+            this.konvaElementFrame.setAttrs({
+                x: 0,
+                y: 0,
+                width: this.konvaElementText.width() + 2 * padding,
+                height: this.frameHeight() + 2 * padding,
+            });
+        }
+        if (this.konvaElementDeco) {
+            this.konvaElementDeco.setAttrs({ x: this.konvaElementText.x(), y: this.konvaElementText.y() });
+        }
+    }
+
+    /**
+     * Traits de soulignement et de barré, en coordonnées du texte (origine = coin haut gauche du texte).
+     * Une seule source pour l'écran, les images et le PDF.
+     */
+    decorationLines(): { x1: number; x2: number; y: number; thickness: number }[] {
+        const lines: { x1: number; x2: number; y: number; thickness: number }[] = [];
+        const t = this.konvaElementText;
+        if (!t || (!this.underline && !this.strikethrough) || !t.text()) return lines;
+        const textArr: { text: string; width: number; lastInParagraph?: boolean }[] = (t as any).textArr || [];
+        const fontSize = t.fontSize();
+        const lineHeightPx = t.lineHeight() * fontSize;
+        const totalWidth = t.width();
+        const align = t.align();
+        const thickness = Math.max(1, fontSize / 15);
+        textArr.forEach((line, i) => {
+            if (!line.text || !line.text.trim()) return;
+            const justified = align === 'justify' && line.lastInParagraph === false && line.text.trim().includes(' ');
+            const w = justified ? totalWidth : line.width;
+            let x1 = 0;
+            if (align === 'right') x1 = totalWidth - w;
+            else if (align === 'center') x1 = (totalWidth - w) / 2;
+            const yc = lineHeightPx * (i + 0.5);
+            if (this.underline) lines.push({ x1, x2: x1 + w, y: yc + 0.36 * fontSize, thickness });
+            if (this.strikethrough) lines.push({ x1, x2: x1 + w, y: yc + 0.05 * fontSize, thickness });
+        });
+        return lines;
+    }
+
+    _drawDecoration(context: any, shape: any) {
+        const lines = this.decorationLines();
+        if (!lines.length || !this.konvaElementText) return;
+        shape.fill(this.konvaElementText.fill());
+        context.beginPath();
+        for (const l of lines) context.rect(l.x1, l.y - l.thickness / 2, Math.max(0, l.x2 - l.x1), l.thickness);
+        context.closePath();
+        context.fillShape(shape);
+    }
+
+    boxWidthNow(): number {
+        const w = this.konvaElementText ? this.konvaElementText.getAttr('width') : undefined;
+        return typeof w === 'number' ? w : 0;
+    }
+
+    /**
+     * Pendant le redimensionnement : les poignées des côtés changent la zone (largeur ou hauteur)
+     * SANS changer la taille du texte ; les poignées des coins agrandissent tout (texte compris).
+     */
+    _onTransform() {
+        const tr = this.konvaTransformer;
+        const group = this.konvaElement;
+        const text = this.konvaElementText;
+        if (!tr || !group || !text || this.type === 'emoji') return;
+        const anchor = tr.getActiveAnchor();
+        const sideX = anchor === 'middle-left' || anchor === 'middle-right';
+        const sideY = anchor === 'top-center' || anchor === 'bottom-center';
+        if (!sideX && !sideY) return;
+        const padding = this._padding();
+        if (sideX) {
+            const w = Math.max(20, Math.round(group.width() * Math.abs(group.scaleX()) - 2 * padding));
+            text.width(w);
+        }
+        if (sideY) {
+            this.boxH = Math.max(10, Math.round(group.height() * Math.abs(group.scaleY()) - 2 * padding));
+        }
+        group.scaleX(1);
+        group.scaleY(1);
+        // Les dimensions du groupe, du fond et du cadre sont recalculées à partir des nouvelles dimensions du texte
+        this._relayout();
+        tr.forceUpdate();
+        this.vida.draw();
+    }
+
+    /** Recalcule groupe, texte, fond et cadre à partir de la taille actuelle du texte (le centre ne bouge pas). */
+    _relayout() {
+        const group = this.konvaElement;
+        const text = this.konvaElementText;
+        const bg = this.konvaElementBackground;
+        if (!group || !text || !bg) return;
+        const padding = this._padding();
+        const frameHeight = this.frameHeight();
+        group.setAttrs({
+            offsetX: text.width() / 2 + padding,
+            offsetY: frameHeight / 2 + padding,
+            width: text.width() + 2 * padding,
+            height: frameHeight + 2 * padding,
+        });
+        text.setAttrs({ x: padding, y: padding + this.textTopOffset() });
+        this._syncFrame(padding);
+        if (this.backgroundMode !== 'disabled') {
+            const width = text.width() + 2 * padding;
+            const height = frameHeight + 2 * padding;
+            bg.setAttrs({ width, height });
+            this._rebuildBackgroundShape(width, height);
+        }
+    }
+
+    _rebuildBackgroundShape(width: number, height: number) {
+        const bg = this.konvaElementBackground;
+        if (!bg) return;
+        const pi = Math.PI;
+        if (this.backgroundMode === 'distorted' || this.backgroundMode === 'normal') {
+            let distortion = [...DEFAULT_DISTORTION];
+            if (this.backgroundMode === 'distorted' && this.backgroundDistortion) distortion = [...this.backgroundDistortion];
+            translatePolygon(distortion, [1, 1]);
+            scalePolygon(distortion, width / 2, height / 2);
+            bg.setAttrs({
+                sceneFunc(context: any, shape: any) {
+                    context.beginPath();
+                    context.moveTo(distortion[0][0], distortion[0][1]);
+                    context.lineTo(distortion[1][0], distortion[1][1]);
+                    context.lineTo(distortion[2][0], distortion[2][1]);
+                    context.lineTo(distortion[3][0], distortion[3][1]);
+                    context.lineTo(distortion[0][0], distortion[0][1]);
+                    context.closePath();
+                    context.fillStrokeShape(shape);
+                },
+            });
+        } else if (this.backgroundMode === 'rounded') {
+            const radius = this.options.background && this.options.background!.radius ? this.options.background!.radius : 0;
+            bg.setAttrs({
+                sceneFunc(context: any, shape: any) {
+                    context.beginPath();
+                    context.moveTo(radius, 0);
+                    context.lineTo(width - radius, 0);
+                    context.arc(width - radius, radius, radius, (3 * pi) / 2, 0);
+                    context.lineTo(width, height - radius);
+                    context.arc(width - radius, height - radius, radius, 0, pi / 2);
+                    context.lineTo(radius, height);
+                    context.arc(radius, height - radius, radius, pi / 2, pi);
+                    context.lineTo(0, radius);
+                    context.arc(radius, radius, radius, pi, (3 * pi) / 2);
+                    context.lineTo(radius, 0);
+                    context.closePath();
+                    context.fillStrokeShape(shape);
+                },
+            });
+        }
+    }
+
     adjustPosition() {
         if (!this.konvaElementText || !this.konvaElementBackground) return;
         this._backupCurrentState({});
@@ -977,41 +1220,56 @@ export default class TextVidaComponent extends AbstractVidaComponent {
         this._adjustAngle();
         this._adjustPosition();
 
-        let currentFontSize = this.konvaElementText!.fontSize() * this.konvaElement!.scaleX();
+        const text = this.konvaElementText!;
+        const group = this.konvaElement!;
+        // Taille de police après le redimensionnement (les coins ont modifié l'échelle du groupe)
+        const scale = Math.abs(group.scaleX()) || 1;
+        let currentFontSize = text.fontSize() * scale;
 
-        let recomputeSize = false;
         const rule = _get(this.options.rules, 'size', <Rule>{});
         if (rule.fixed !== undefined && rule.fixed) {
             currentFontSize = this.optionsFontSize();
-            recomputeSize = true;
         } else {
-            if (rule.min !== undefined && currentFontSize < rule.min) {
-                currentFontSize = rule.min;
-                recomputeSize = true;
-            }
-            if (rule.max !== undefined && currentFontSize > rule.max) {
-                currentFontSize = rule.max;
-                recomputeSize = true;
-            }
+            if (rule.min !== undefined && currentFontSize < rule.min) currentFontSize = rule.min;
+            if (rule.max !== undefined && currentFontSize > rule.max) currentFontSize = rule.max;
         }
 
-        if (recomputeSize) {
-            const scale = currentFontSize / this.konvaElementText!.fontSize();
-            this.konvaElement?.setAttrs({
-                scaleX: scale,
-                scaleY: scale,
-            });
+        // La zone de texte suit la taille du texte quand on l'agrandit par un coin
+        const ratio = currentFontSize / text.fontSize();
+        let newBoxWidth = this.boxWidthNow();
+        let newBoxHeight = this.boxH || 0;
+        if (Math.abs(ratio - 1) > 0.0001) {
+            if (newBoxWidth > 0) newBoxWidth = Math.round(newBoxWidth * ratio);
+            if (newBoxHeight > 0) newBoxHeight = Math.round(newBoxHeight * ratio);
         }
 
+        const topLevel: any = {};
+        if (Math.round(newBoxWidth) !== Math.round(this.options.boxWidth || 0)) topLevel.boxWidth = Math.round(newBoxWidth);
+        if (Math.round(newBoxHeight) !== Math.round(this.options.boxHeight || 0)) topLevel.boxHeight = Math.round(newBoxHeight);
         if (Math.abs(currentFontSize - this.optionsFontSize()) > 0.1) {
             if (this.editingLocale !== null) {
                 this._appendToCurrentBackup({ i18n: { [this.editingLocale]: { size: currentFontSize } } });
                 assignValues(this.options.i18n, { [this.editingLocale]: { size: currentFontSize } }, undefined);
             } else {
-                this._appendToCurrentBackup({ size: currentFontSize });
-                this.options.size = currentFontSize;
+                topLevel.size = currentFontSize;
             }
         }
+        if (Object.keys(topLevel).length) {
+            this._appendToCurrentBackup(topLevel);
+            assignValues(this.options, topLevel, undefined);
+        }
+
+        // On « fige » le redimensionnement : la taille de police, la zone et le groupe sont recalculés (échelle = 1)
+        if (Math.abs(group.scaleX() - 1) > 0.0001 || Math.abs(group.scaleY() - 1) > 0.0001 || Math.abs(ratio - 1) > 0.0001) {
+            text.fontSize(currentFontSize);
+            group.scaleX(1);
+            group.scaleY(1);
+            this._recomputePosition = true;
+        }
+        const apply: any = { size: currentFontSize, boxWidth: Math.round(newBoxWidth), boxHeight: Math.round(newBoxHeight) };
+        this._inPromise = false;
+        this.internalUpdate(apply, {});
+
         if (this._cleanUndoHistory()) return;
         this.vida.onComponentUpdated(this.id());
     }

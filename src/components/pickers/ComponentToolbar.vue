@@ -6,14 +6,6 @@ const vStore = useVidaStore();
 
 <template>
     <div class="row is-justify-content-center">
-        <b-tooltip :label="$t('BUTTONS.UNDO')" style='padding: 0px 3px'>
-            <b-button icon @click='vStore.undo(componentId)' icon-left="undo"
-                :disabled='!vStore.canUndo(componentId) || disabled'></b-button>
-        </b-tooltip>
-        <b-tooltip :label="$t('BUTTONS.REDO')" style='padding: 0px 3px'>
-            <b-button icon @click='vStore.redo(componentId)' icon-left="redo"
-                :disabled='!vStore.canRedo(componentId) || disabled'></b-button>
-        </b-tooltip>
         <b-tooltip v-if="vStore.allowedActions(componentId).has('forward')" :label="$t('BUTTONS.BRING_FORWARD')"
             style="padding: 0px 3px">
             <b-button icon @click="$emit('forward')" icon-left="arrange-bring-forward"
@@ -74,18 +66,6 @@ export default {
         handleKeydown(event) {
 
             const vStore = useVidaStore();
-            if (event.ctrlKey && event.key == 'z') {
-                vStore.undo(this.componentId);
-                event.preventDefault();
-                return;
-            }
-
-            if (event.ctrlKey && event.key == 'y') {
-                vStore.redo(this.componentId);
-                event.preventDefault();
-                return;
-            }
-
             if (vStore.allowedActions(this.componentId).has('duplicate')
                 && event.ctrlKey && event.key == 'd') {
                 this.$emit('duplicate')

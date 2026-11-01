@@ -98,6 +98,7 @@ export default class ImageVidaComponent extends AbstractVidaComponent {
             flipY: !!this.options.flipY,
             opacity: this.options.opacity === undefined ? 1 : this.options.opacity,
             blur: this.options.blur || 0,
+            groupId: this.options.groupId,
             zIndex: this.zIndex(),
             i18n: this.options.i18n,
             rules: this.options.rules !== undefined ? this.options.rules : {},

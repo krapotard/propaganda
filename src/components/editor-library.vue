@@ -183,6 +183,10 @@ const listOf = (id) => ({ templates: store.templates, backgrounds: store.backgro
                 <div v-else-if="current === 'text'" class="actions">
                     <button type="button" class="action action-title" @click="$emit('text', 'title')">Ajouter un titre</button>
                     <button type="button" class="action action-body" @click="$emit('text', 'body')">Ajouter un texte</button>
+                    <button type="button" class="action action-frame" @click="$emit('text-frame')">
+                        <b-icon icon="selection-drag" size="is-small" /> Dessiner une zone de texte
+                    </button>
+                    <p class="hint">Dessiner une zone de texte : tire un cadre sur le visuel, puis écris dedans. Les poignées des côtés changent la zone sans changer la taille du texte.</p>
                 </div>
 
                 <!-- QR code -->
