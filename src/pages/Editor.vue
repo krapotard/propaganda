@@ -366,7 +366,8 @@ export default {
                             resolve();
                             return;
                         }
-                        this.store.fetchTemplate(this.templateId).then((template) => resolve(template));
+                        // modèle introuvable : on repart d'un visuel neuf au lieu de rester bloqué
+                        this.store.fetchTemplate(this.templateId).then((template) => resolve(template)).catch(() => resolve(undefined));
                     });
             });
         },
@@ -611,7 +612,8 @@ export default {
         setup() {
             return new Promise((resolve) => {
                 this.getTemplateJson().then((templateJson) => {
-                    fontsLoaded().then(() => {
+                    // si les polices tardent (ou échouent), on charge quand même : le visuel ne doit pas rester bloqué
+                    fontsLoaded().catch(() => {}).then(() => {
                         const propose = templateJson == undefined && this.exportType(this.$route) === undefined
                             ? this.proposerBrouillon() : Promise.resolve(undefined);
                         propose.then((brouillon) => {
@@ -834,7 +836,17 @@ export default {
             // TODO: rerender
         },
         chooseTemplate(templateId) {
-            this.$router.push({ name: 'editor', params: { lang: this.$i18n.locale, templateId } });
+            // Même adresse que la page actuelle (modèle déjà ouvert, ou « Nouveau » après un modèle) : le routeur refuse
+            // la navigation (NavigationDuplicated) et l'erreur remontait en boîte « erreur inattendue ». On recharge donc
+            // directement le modèle demandé.
+            if (this.$route.name === 'editor' && this.$route.params.templateId === templateId && !this.exportType(this.$route)) {
+                this.templateId = templateId;
+                this.setup();
+                return;
+            }
+            const nav = this.$router.push({ name: 'editor', params: { lang: this.$i18n.locale, templateId } });
+            // une navigation annulée ou identique n'est pas une erreur pour la personne qui utilise l'éditeur
+            if (nav && nav.catch) nav.catch(() => {});
         },
         chooseBackground(element) {
             this.updateDocument({ background: { ...element, gallery: 'backgrounds', type: 'internalsvg' } }).then(() => {

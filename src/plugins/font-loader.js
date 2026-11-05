@@ -46,7 +46,10 @@ export const loadFonts = (fonts) =>
 
 function checkIfLoaded(elapsedTime, checkPeriod, timeout) {
     return new Promise((resolve, reject) => {
-        if (elapsedTime >= timeout) reject();
+        if (elapsedTime >= timeout) {
+            reject();
+            return; // on arrête de surveiller (sinon la boucle tournait indéfiniment)
+        }
         elapsedTime += checkPeriod;
 
         const html = document.getElementsByTagName('html')[0];
