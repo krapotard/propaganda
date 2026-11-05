@@ -70,6 +70,36 @@
         }
     },
     {
+        "id": "format-a5-paysage",
+        "creation_date": "2026-11-05T00:02:00",
+        "width": 794,
+        "height": 559,
+        "resolution": 96,
+        "label": {
+            "fr": "A5 paysage (794 x 559)"
+        }
+    },
+    {
+        "id": "format-a4-paysage",
+        "creation_date": "2026-11-05T00:02:01",
+        "width": 1123,
+        "height": 794,
+        "resolution": 96,
+        "label": {
+            "fr": "A4 paysage (1123 x 794)"
+        }
+    },
+    {
+        "id": "format-a3-paysage",
+        "creation_date": "2026-11-05T00:02:02",
+        "width": 1587,
+        "height": 1123,
+        "resolution": 96,
+        "label": {
+            "fr": "A3 paysage (1587 x 1123)"
+        }
+    },
+    {
         "id": "format-reseaux-4-5",
         "creation_date": "2026-10-20T00:00:00",
         "width": 1080,

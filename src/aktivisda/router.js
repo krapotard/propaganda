@@ -18,6 +18,19 @@ import { useStore } from '@datastore';
 
 Vue.use(Router);
 
+// Aller à l'adresse où l'on se trouve déjà (ou une navigation annulée) n'est pas une erreur : sans cela vue-router
+// rejette la promesse, et l'éditeur affichait « Une erreur inattendue s'est produite ».
+for (const methode of ['push', 'replace']) {
+    const origine = Router.prototype[methode];
+    Router.prototype[methode] = function (location, onComplete, onAbort) {
+        if (onComplete || onAbort) return origine.call(this, location, onComplete, onAbort);
+        return origine.call(this, location).catch((err) => {
+            if (Router.isNavigationFailure && Router.isNavigationFailure(err)) return err;
+            throw err;
+        });
+    };
+}
+
 import { loadAndSetLanguage, isDefault } from '@/plugins/i18n';
 import { detectBestLanguage } from '@/plugins/i18n-utils';
 
