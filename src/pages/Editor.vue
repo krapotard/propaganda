@@ -541,6 +541,7 @@ export default {
                 if (
                     param === 'png' ||
                     param === 'pdf' ||
+                    param === 'pdfweb' ||
                     param === 'jpg' ||
                     param === 'template' ||
                     param === 'link' ||
@@ -557,6 +558,7 @@ export default {
                 if (
                     param === 'png' ||
                     param === 'pdf' ||
+                    param === 'pdfweb' ||
                     param === 'jpg' ||
                     param === 'template' ||
                     param === 'link' ||
@@ -1158,7 +1160,8 @@ export default {
                 this.isExporting = true;
                 switch (format) {
                     case 'pdf':
-                        this.exportPdf().then(() => {
+                    case 'pdfweb':
+                        this.exportPdf(format === 'pdfweb' ? 'web' : 'print').then(() => {
                             this.isExporting = false;
                             this.compressionToast.close();
                             resolve();
@@ -1381,15 +1384,16 @@ export default {
                 actionText: null,
             });
         },
-        exportPdf() {
+        // mode : 'print' (images en pleine résolution) ou 'web' (images réduites côté navigateur, fichier léger pour le courriel)
+        exportPdf(mode = 'print') {
             return new Promise((resolve) => {
                 // Do no load library if useless
-                this.vida.toPdf(pdfMakeFonts(this.store.fonts))
+                this.vida.toPdf(pdfMakeFonts(this.store.fonts), mode)
                 .then((url) => {
                     const link = document.createElement('a');
                     const { id } = this.vida.documentParams();
                     const filename = 'aktivisda-' + id;
-                    link.download = `${filename}.pdf`;
+                    link.download = mode === 'web' ? `${filename}-web.pdf` : `${filename}.pdf`;
                     link.href = url;
                     document.body.appendChild(link);
                     link.click();

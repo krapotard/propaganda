@@ -19,6 +19,11 @@
             </router-link>
         </b-dropdown-item>
         <b-dropdown-item aria-role="listitem" has-link>
+            <router-link id="export-pdfweb-button" :to="{ name: route, params: { templateId: templateId, lang: $i18n.locale, exportType: 'pdfweb' } }">
+                {{ $t('EDIT.EXPORT.PDF_WEB') }}
+            </router-link>
+        </b-dropdown-item>
+        <b-dropdown-item aria-role="listitem" has-link>
             <router-link
                 id="export-template-button"
                 :to="{ name: route, params: { templateId: templateId, lang: $i18n.locale, exportType: 'template' } }">

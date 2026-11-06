@@ -118,12 +118,12 @@ const router = new Router({
                     component: AboutPage,
                 },
                 {
-                    path: 'edit/:exportType(png|jpg|template|pdf|link)?',
+                    path: 'edit/:exportType(png|jpg|template|pdfweb|pdf|link)?',
                     name: 'editorNew',
                     component: EditorPage,
                 },
                 {
-                    path: 'edit/:templateId?/:exportType(png|jpg|template|pdf|link)?',
+                    path: 'edit/:templateId?/:exportType(png|jpg|template|pdfweb|pdf|link)?',
                     name: 'editor',
                     component: EditorPage,
                 },
