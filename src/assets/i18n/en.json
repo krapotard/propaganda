@@ -260,6 +260,7 @@
             "LINK": "Share a link",
             "MAIN": "Save",
             "PDF": "Export to PDF",
+            "PDF_WEB": "Export to light PDF (email, screen)",
             "PDF_ERROR": "Some features of your template are not yet available when exporting to PDF. Please consider exporting to PNG or JPEG instead.",
             "PNG": "Export to PNG",
             "SVG": "Export to SVG",

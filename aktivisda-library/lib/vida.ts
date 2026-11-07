@@ -17,7 +17,7 @@ import InvalidDataError from './invaliddataerror.js';
 import { computeRelativePosition, pxToPt } from './utils/positionutils.ts';
 
 import Konva from 'konva';
-import { toPdfDataUrl } from './utils/pdf.ts';
+import { toPdfDataUrl, reduceDescriptionImages } from './utils/pdf.ts';
 
 import packageFile from '../package.json';
 import ShapeVidaComponent from './components/shapevidacomponent.ts';
@@ -824,12 +824,14 @@ export default class Vida {
      * Export the vida image to a dataUrl pdf
      * using pdfmake.
      */
-    toPdf(fonts: any): Promise<string> {
+    toPdf(fonts: any, mode: 'print' | 'web' = 'print'): Promise<string> {
         return new Promise((resolve, reject) => {
-            this._toPdfDescription().then((desc) => {
+            this._toPdfDescription().then(async (desc) => {
                 if (desc.status !== 'ok') {
                     reject();
                 }
+                // Version « web » : images réduites à ~150 dpi côté navigateur (rien n'est calculé sur le serveur)
+                if (mode === 'web') await reduceDescriptionImages(desc.description, 150);
                 toPdfDataUrl(desc.description, fonts)
                     .then((r) => {
                         resolve(r);
