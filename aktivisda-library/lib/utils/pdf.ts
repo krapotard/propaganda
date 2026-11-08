@@ -78,6 +78,7 @@ async function shrinkDataUrl(original: string, img: HTMLImageElement, targetWidt
 }
 
 const MAX_SIDE_PX = 3000;
+const MIN_SIDE_PX = 200;
 
 /**
  * Version « web » du PDF : réduit, directement dans le navigateur, les images embarquées dans les SVG
@@ -110,7 +111,9 @@ export async function reduceDescriptionImages(description: any, dpi: number): Pr
                 needs.set(block.image, Math.max(needs.get(block.image) || 0, (block.width * dpi) / 72));
                 continue;
             }
-            const doc = new DOMParser().parseFromString(block.svg, 'image/svg+xml');
+            // Les SVG fabriqués par Propaganda n'ont pas toujours d'espace de noms : sans lui le navigateur ne les dessine pas
+            const svgSource = /<svg\b[^>]*\bxmlns\s*=/.test(block.svg) ? block.svg : block.svg.replace(/<svg\b/, '<svg xmlns="http://www.w3.org/2000/svg"');
+            const doc = new DOMParser().parseFromString(svgSource, 'image/svg+xml');
             const root = doc.documentElement;
             if (doc.querySelector('parsererror') || root.nodeName.toLowerCase() !== 'svg') continue;
             // Affichage à l'échelle de la page (1 unité = 1 pt) pour mesurer la taille réelle de chaque image
@@ -139,8 +142,9 @@ export async function reduceDescriptionImages(description: any, dpi: number): Pr
                         continue;
                     }
                 }
+                // Mesure impossible (élément non rendu comme une image SVG) : l'image est conservée telle quelle
+                if (!(probeImages[i] instanceof SVGImageElement)) continue;
                 const rect = probeImages[i].getBoundingClientRect();
-                // Mesure impossible : l'image est conservée telle quelle
                 if (!(rect.width > 0)) continue;
                 needs.set(href, Math.max(needs.get(href) || 0, (rect.width * dpi) / 72));
                 items.push({ el, href, attr });
@@ -157,7 +161,8 @@ export async function reduceDescriptionImages(description: any, dpi: number): Pr
     for (const [href, need] of needs) {
         try {
             const img = await loadImage(href);
-            const target = Math.min(Math.ceil(need), MAX_SIDE_PX, img.naturalWidth);
+            // Plancher : jamais moins de MIN_SIDE_PX (ou la taille d'origine si elle est plus petite), même si la mesure est étrange
+            const target = Math.min(Math.max(Math.ceil(need), MIN_SIDE_PX), MAX_SIDE_PX, img.naturalWidth);
             // Plafond aussi sur le grand côté
             const longest = Math.max(img.naturalWidth, img.naturalHeight);
             const cap = Math.floor((target * longest) / img.naturalWidth) > MAX_SIDE_PX ? Math.floor((MAX_SIDE_PX * img.naturalWidth) / longest) : target;
