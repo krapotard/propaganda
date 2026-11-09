@@ -16,9 +16,10 @@ import InvalidDataError from '../invaliddataerror.ts';
 
 const DEFAULT_DISTORTION = [[-1, 1], [1, 1], [1, -1], [-1, -1]]
 
-// Image transparente de 1 pixel, support des liens cliquables dans le PDF
+// Image 1 pixel TOTALEMENT transparente (alpha 0), support des liens cliquables dans le PDF.
+// (maj21 utilisait par erreur un pixel bleu à 50 % d'opacité : une zone bleutée apparaissait sur les liens.)
 const TRANSPARENT_PIXEL =
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNgYGBgAAAABQABeqhXUAAAAABJRU5ErkJggg==';
 
 /**
  * Adresse prête à être mise dans un PDF : ajoute https:// si besoin,

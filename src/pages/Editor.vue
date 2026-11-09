@@ -896,16 +896,54 @@ export default {
                 };
                 probe.src = dataUrl;
             };
-            reader.onload = () => {
+            // Les grandes images (ex. PNG détourés Vecteezy de 4096 px) sont d'abord réduites : la compression
+            // dans le navigateur est beaucoup trop lente au-delà de quelques millions de pixels (page bloquée).
+            const MAX_IMPORT_SIDE = 1800;
+            const downscale = (dataUrl) =>
+                new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const longest = Math.max(img.naturalWidth, img.naturalHeight);
+                        if (longest <= MAX_IMPORT_SIDE) return resolve(dataUrl);
+                        const k = MAX_IMPORT_SIDE / longest;
+                        let w = img.naturalWidth;
+                        let h = img.naturalHeight;
+                        let source = img;
+                        // réduction par moitiés successives, pour garder des bords nets
+                        while (w / 2 >= img.naturalWidth * k) {
+                            const c = document.createElement('canvas');
+                            w = Math.round(w / 2);
+                            h = Math.round(h / 2);
+                            c.width = w;
+                            c.height = h;
+                            const cx = c.getContext('2d');
+                            cx.imageSmoothingQuality = 'high';
+                            cx.drawImage(source, 0, 0, w, h);
+                            source = c;
+                        }
+                        const out = document.createElement('canvas');
+                        out.width = Math.max(1, Math.round(img.naturalWidth * k));
+                        out.height = Math.max(1, Math.round(img.naturalHeight * k));
+                        const ctx = out.getContext('2d');
+                        ctx.imageSmoothingQuality = 'high';
+                        ctx.drawImage(source, 0, 0, out.width, out.height);
+                        resolve(out.toDataURL(mimeType, mimeType === 'image/jpeg' ? 0.9 : undefined));
+                    };
+                    img.onerror = () => resolve(dataUrl);
+                    img.src = dataUrl;
+                });
+            reader.onload = async () => {
                 if (file.type === 'image/webp') return finish(reader.result); // la compression ne gère que JPG et PNG
-                compressImage(reader.result, mimeType, 75)
+                const source = await downscale(reader.result);
+                // Garde-fou : si la compression traîne (plus de 25 s), on garde l'image réduite, non compressée
+                Promise.race([compressImage(source, mimeType, 75), new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 25000))])
                     .then((r) => {
                         const blob = new Blob([r['resultData']], { type: mimeType });
                         const base64Reader = new FileReader();
                         base64Reader.onloadend = () => finish(base64Reader.result);
                         base64Reader.readAsDataURL(blob);
                     })
-                    .catch(() => finish(reader.result));
+                    .catch(() => finish(source));
             };
             reader.readAsDataURL(file);
         },
